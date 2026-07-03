@@ -104,8 +104,13 @@ def send_anomaly_report(lora_client, per_chunk_predictions: list[int]):
     """Send Observations TimeSeries payload like MCU send_results()."""
     predictions = [1 if int(v) > 0 else 0 for v in per_chunk_predictions]
 
-    # TimeSeries count field is uint8, so split long windows into multiple packets.
-    chunks: list[list[int]] = [predictions[i : i + 255] for i in range(0, len(predictions), 255)]
+    # Packet payload length is uint8 (max 255 bytes). For one TIME_SERIES entry we have:
+    # [type:1][count:1][values:N] => N must be <= 253.
+    max_values_per_packet = 253
+    chunks: list[list[int]] = [
+        predictions[i : i + max_values_per_packet]
+        for i in range(0, len(predictions), max_values_per_packet)
+    ]
     if not chunks:
         chunks = [[]]
 
@@ -213,6 +218,18 @@ def main():
     logger.info("Listening... (Ctrl+C to stop)")
 
     chunk_samples = int(config.SAMPLE_RATE * config.CHUNK_DURATION)
+    stride_samples = int(config.SAMPLE_RATE * getattr(config, "DETECTION_STRIDE_SECONDS", config.CHUNK_DURATION))
+    if stride_samples <= 0:
+        print("ERROR: DETECTION_STRIDE_SECONDS must be > 0")
+        sys.exit(1)
+    if stride_samples > chunk_samples:
+        print("ERROR: DETECTION_STRIDE_SECONDS cannot be greater than CHUNK_DURATION")
+        sys.exit(1)
+    logger.info(
+        f"Window={config.CHUNK_DURATION:.2f}s stride={stride_samples/config.SAMPLE_RATE:.2f}s "
+        f"overlap={(1.0 - stride_samples/max(chunk_samples, 1))*100:.0f}%"
+    )
+
     buffer = np.array([], dtype=np.float32)
     anomaly_count = 0
     total_chunks = 0
@@ -245,7 +262,7 @@ def main():
 
             while len(buffer) >= chunk_samples:
                 chunk = buffer[:chunk_samples]
-                buffer = buffer[chunk_samples:]
+                buffer = buffer[stride_samples:]
                 total_chunks += 1
                 rms = float(np.sqrt(np.mean(chunk**2)))
                 peak = float(np.max(np.abs(chunk))) if len(chunk) else 0.0
@@ -264,7 +281,6 @@ def main():
                             f"LIVE chunk={total_chunks} score={score:.4f} "
                             f"prediction={'drone' if is_anomaly else 'no_drone'}"
                         )
-
                 if is_anomaly:
                     anomaly_count += 1
                     logger.warning(

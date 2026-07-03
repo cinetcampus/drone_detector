@@ -5,6 +5,7 @@ DEVICE_INDEX = 0  # USB Audio Device (card 0)
 SAMPLE_RATE = 44100
 CHANNELS = 1
 CHUNK_DURATION = 1.0  # seconds per analysis window
+DETECTION_STRIDE_SECONDS = 0.5  # seconds between consecutive windows (0.5 => 50% overlap)
 
 # Feature extraction
 N_MELS = 64

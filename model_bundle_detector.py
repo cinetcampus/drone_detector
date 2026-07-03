@@ -8,106 +8,204 @@ Bundle contract:
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import joblib
-import librosa
 import numpy as np
+from scipy import fft as scipy_fft
 
 import config
+
+
+EPSILON = 1e-12
+MEL_FILTER_COUNT = 40
+LOW_BAND_HZ = (20.0, 500.0)
+MID_BAND_HZ = (500.0, 2000.0)
 
 
 def _safe_div(num: float, den: float, eps: float = 1e-12) -> float:
     return float(num / (den + eps))
 
 
+def _next_power_of_two(value: int) -> int:
+    return 1 << (value - 1).bit_length()
+
+
+def _hz_to_mel(value):
+    return 2595.0 * np.log10(1.0 + np.asarray(value) / 700.0)
+
+
+def _mel_to_hz(value):
+    return 700.0 * (10.0 ** (np.asarray(value) / 2595.0) - 1.0)
+
+
+def _mel_filterbank(sample_rate_hz: int, n_fft: int, mel_count: int) -> np.ndarray:
+    min_mel = _hz_to_mel(0.0)
+    max_mel = _hz_to_mel(sample_rate_hz / 2.0)
+    mel_points = np.linspace(min_mel, max_mel, mel_count + 2)
+    hz_points = _mel_to_hz(mel_points)
+    bins = np.floor((n_fft + 1) * hz_points / sample_rate_hz).astype(int)
+    bins = np.clip(bins, 0, n_fft // 2)
+    filters = np.zeros((mel_count, n_fft // 2 + 1), dtype=np.float64)
+    for index in range(1, mel_count + 1):
+        left, center, right = bins[index - 1], bins[index], bins[index + 1]
+        if center == left:
+            center = min(center + 1, n_fft // 2)
+        if right == center:
+            right = min(right + 1, n_fft // 2)
+        for bin_index in range(left, center):
+            filters[index - 1, bin_index] = (bin_index - left) / max(center - left, 1)
+        for bin_index in range(center, right):
+            filters[index - 1, bin_index] = (right - bin_index) / max(right - center, 1)
+    return filters
+
+
+def _framed_audio(samples: np.ndarray, sample_rate_hz: int) -> np.ndarray:
+    frame_length = max(1, int(round(0.025 * sample_rate_hz)))
+    hop_length = max(1, int(round(0.010 * sample_rate_hz)))
+    if len(samples) < frame_length:
+        samples = np.pad(samples, (0, frame_length - len(samples)))
+    frame_starts = range(0, len(samples) - frame_length + 1, hop_length)
+    frames = [samples[start : start + frame_length] for start in frame_starts]
+    if not frames:
+        frames = [np.pad(samples, (0, frame_length - len(samples)))]
+    return np.vstack(frames)
+
+
+def _band_energy(freqs: np.ndarray, power: np.ndarray, low_hz: float, high_hz: float) -> float:
+    mask = (freqs >= low_hz) & (freqs < high_hz)
+    return float(np.sum(power[mask]))
+
+
+def _v1_basic_features(samples: np.ndarray) -> tuple[float, ...]:
+    abs_samples = np.abs(samples)
+    signs = samples >= 0
+    crossings = np.count_nonzero(signs[1:] != signs[:-1]) if len(samples) > 1 else 0
+    zero_crossing_rate = crossings / (len(samples) - 1) if len(samples) > 1 else 0.0
+    return (
+        float(np.mean(samples)),
+        float(np.mean(abs_samples)),
+        float(np.sqrt(np.mean(samples * samples))),
+        float(np.max(abs_samples)),
+        float(zero_crossing_rate),
+    )
+
+
+def _spectral_features(samples: np.ndarray, sample_rate_hz: int) -> tuple[float, ...]:
+    windowed = samples * np.hanning(len(samples))
+    magnitudes = np.abs(np.fft.rfft(windowed))
+    power = magnitudes * magnitudes
+    freqs = np.fft.rfftfreq(len(samples), d=1.0 / sample_rate_hz)
+    total_power = float(np.sum(power))
+    if total_power <= EPSILON:
+        return (0.0,) * 15
+
+    centroid = float(np.sum(freqs * power) / total_power)
+    bandwidth = float(np.sqrt(np.sum(((freqs - centroid) ** 2) * power) / total_power))
+    cumulative = np.cumsum(power)
+    rolloff_index = int(np.searchsorted(cumulative, 0.85 * total_power, side="left"))
+    rolloff_index = min(rolloff_index, len(freqs) - 1)
+    rolloff = float(freqs[rolloff_index])
+    flatness = float(np.exp(np.mean(np.log(power + EPSILON))) / (np.mean(power) + EPSILON))
+
+    positive = magnitudes[magnitudes > EPSILON]
+    if positive.size:
+        low_percentile = float(np.percentile(positive, 5))
+        high_percentile = float(np.percentile(positive, 95))
+        spectral_contrast = 20.0 * math.log10((high_percentile + EPSILON) / (low_percentile + EPSILON))
+    else:
+        spectral_contrast = 0.0
+
+    dominant_frequency = float(freqs[int(np.argmax(power))])
+
+    low_energy = _band_energy(freqs, power, LOW_BAND_HZ[0], LOW_BAND_HZ[1])
+    mid_energy = _band_energy(freqs, power, MID_BAND_HZ[0], MID_BAND_HZ[1])
+    high_energy = _band_energy(freqs, power, MID_BAND_HZ[1], sample_rate_hz / 2.0)
+
+    return (
+        centroid,
+        bandwidth,
+        rolloff,
+        flatness,
+        spectral_contrast,
+        dominant_frequency,
+        low_energy,
+        mid_energy,
+        high_energy,
+        low_energy / (total_power + EPSILON),
+        mid_energy / (total_power + EPSILON),
+        high_energy / (total_power + EPSILON),
+        low_energy / (mid_energy + EPSILON),
+        low_energy / (high_energy + EPSILON),
+        mid_energy / (high_energy + EPSILON),
+    )
+
+
+def _mfcc_features(samples: np.ndarray, sample_rate_hz: int) -> tuple[float, ...]:
+    frames = _framed_audio(samples, sample_rate_hz)
+    frame_length = frames.shape[1]
+    n_fft = _next_power_of_two(frame_length)
+    window = np.hanning(frame_length)
+    spectrum = np.fft.rfft(frames * window, n=n_fft, axis=1)
+    power = (np.abs(spectrum) ** 2) / n_fft
+
+    filters = _mel_filterbank(sample_rate_hz, n_fft, MEL_FILTER_COUNT)
+    mel_energy = np.maximum(power @ filters.T, EPSILON)
+    log_mel = np.log(mel_energy)
+
+    coefficient_count = int(config.N_MFCC)
+    coefficients = scipy_fft.dct(log_mel, type=2, norm="ortho", axis=1)[:, :coefficient_count]
+    if coefficients.shape[0] > 1:
+        deltas = np.diff(coefficients, axis=0)
+    else:
+        deltas = np.zeros_like(coefficients)
+
+    return tuple(
+        [float(value) for value in np.mean(coefficients, axis=0)]
+        + [float(value) for value in np.std(coefficients, axis=0)]
+        + [float(value) for value in np.mean(deltas, axis=0)]
+        + [float(value) for value in np.std(deltas, axis=0)]
+    )
+
+
 def extract_spectral_mfcc_v1(audio: np.ndarray, sr: int) -> dict[str, float]:
-    y = audio.astype(np.float32, copy=False)
+    y = audio.astype(np.float64, copy=False)
     if y.ndim != 1:
         y = y.flatten()
 
-    n_fft = config.N_FFT
-    hop = config.HOP_LENGTH
-    n_mfcc = config.N_MFCC
+    values = _v1_basic_features(y) + _spectral_features(y, sr) + _mfcc_features(y, sr)
+    names = [
+        "mean",
+        "mean_abs",
+        "rms",
+        "peak_abs",
+        "zero_crossing_rate",
+        "spectral_centroid_hz",
+        "spectral_bandwidth_hz",
+        "spectral_rolloff_85_hz",
+        "spectral_flatness",
+        "spectral_contrast_db",
+        "dominant_frequency_hz",
+        "low_band_energy",
+        "mid_band_energy",
+        "high_band_energy",
+        "low_total_ratio",
+        "mid_total_ratio",
+        "high_total_ratio",
+        "low_mid_ratio",
+        "low_high_ratio",
+        "mid_high_ratio",
+    ]
+    coefficient_count = int(config.N_MFCC)
+    names.extend([f"mfcc_{i + 1:02d}_mean" for i in range(coefficient_count)])
+    names.extend([f"mfcc_{i + 1:02d}_std" for i in range(coefficient_count)])
+    names.extend([f"delta_mfcc_{i + 1:02d}_mean" for i in range(coefficient_count)])
+    names.extend([f"delta_mfcc_{i + 1:02d}_std" for i in range(coefficient_count)])
 
-    abs_y = np.abs(y)
-    rms = float(np.sqrt(np.mean(np.square(y))))
-    peak_abs = float(np.max(abs_y)) if abs_y.size else 0.0
-
-    zcr = float(np.mean(librosa.feature.zero_crossing_rate(y=y, frame_length=n_fft, hop_length=hop)))
-
-    S_complex = librosa.stft(y=y, n_fft=n_fft, hop_length=hop)
-    S_mag = np.abs(S_complex)
-    S_power = np.square(S_mag)
-    freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
-
-    spectral_centroid = float(np.mean(librosa.feature.spectral_centroid(S=S_mag, sr=sr)))
-    spectral_bandwidth = float(np.mean(librosa.feature.spectral_bandwidth(S=S_mag, sr=sr)))
-    spectral_rolloff = float(
-        np.mean(librosa.feature.spectral_rolloff(S=S_mag, sr=sr, roll_percent=0.85))
-    )
-    spectral_flatness = float(np.mean(librosa.feature.spectral_flatness(S=S_mag)))
-    spectral_contrast = float(np.mean(librosa.feature.spectral_contrast(S=S_mag, sr=sr)))
-
-    mean_spectrum = np.mean(S_power, axis=1) if S_power.ndim == 2 else np.array([], dtype=np.float32)
-    dominant_frequency = float(freqs[int(np.argmax(mean_spectrum))]) if mean_spectrum.size else 0.0
-
-    low_mask = freqs < 300.0
-    mid_mask = (freqs >= 300.0) & (freqs < 3000.0)
-    high_mask = freqs >= 3000.0
-
-    low_energy = float(np.sum(mean_spectrum[low_mask])) if mean_spectrum.size else 0.0
-    mid_energy = float(np.sum(mean_spectrum[mid_mask])) if mean_spectrum.size else 0.0
-    high_energy = float(np.sum(mean_spectrum[high_mask])) if mean_spectrum.size else 0.0
-    total_energy = low_energy + mid_energy + high_energy
-
-    mfcc = librosa.feature.mfcc(
-        y=y,
-        sr=sr,
-        n_mfcc=n_mfcc,
-        n_fft=n_fft,
-        hop_length=hop,
-        n_mels=config.N_MELS,
-    )
-    delta_mfcc = librosa.feature.delta(mfcc)
-
-    mfcc_mean = np.mean(mfcc, axis=1)
-    mfcc_std = np.std(mfcc, axis=1)
-    delta_mean = np.mean(delta_mfcc, axis=1)
-    delta_std = np.std(delta_mfcc, axis=1)
-
-    feats: dict[str, float] = {
-        "mean": float(np.mean(y)) if y.size else 0.0,
-        "mean_abs": float(np.mean(abs_y)) if abs_y.size else 0.0,
-        "rms": rms,
-        "peak_abs": peak_abs,
-        "zero_crossing_rate": zcr,
-        "spectral_centroid_hz": spectral_centroid,
-        "spectral_bandwidth_hz": spectral_bandwidth,
-        "spectral_rolloff_85_hz": spectral_rolloff,
-        "spectral_flatness": spectral_flatness,
-        "spectral_contrast_db": spectral_contrast,
-        "dominant_frequency_hz": dominant_frequency,
-        "low_band_energy": low_energy,
-        "mid_band_energy": mid_energy,
-        "high_band_energy": high_energy,
-        "low_total_ratio": _safe_div(low_energy, total_energy),
-        "mid_total_ratio": _safe_div(mid_energy, total_energy),
-        "high_total_ratio": _safe_div(high_energy, total_energy),
-        "low_mid_ratio": _safe_div(low_energy, mid_energy),
-        "low_high_ratio": _safe_div(low_energy, high_energy),
-        "mid_high_ratio": _safe_div(mid_energy, high_energy),
-    }
-
-    for i in range(n_mfcc):
-        feats[f"mfcc_{i + 1:02d}_mean"] = float(mfcc_mean[i])
-    for i in range(n_mfcc):
-        feats[f"mfcc_{i + 1:02d}_std"] = float(mfcc_std[i])
-    for i in range(n_mfcc):
-        feats[f"delta_mfcc_{i + 1:02d}_mean"] = float(delta_mean[i])
-    for i in range(n_mfcc):
-        feats[f"delta_mfcc_{i + 1:02d}_std"] = float(delta_std[i])
-
+    feats = {}
+    for name, value in zip(names, values):
+        feats[name] = float(value) if np.isfinite(value) else 0.0
     return feats
 
 

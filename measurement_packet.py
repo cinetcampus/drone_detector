@@ -10,6 +10,7 @@ from enum import IntEnum
 
 
 MEASUREMENT_HEADER_LENGTH = 2
+MAX_PAYLOAD_LENGTH = 0xFF
 
 
 class PacketVersion(IntEnum):
@@ -67,7 +68,12 @@ class MeasurementPacket:
 
     def _set_length(self):
         # Payload length excludes first two header bytes.
-        self._buffer[1] = len(self._buffer) - MEASUREMENT_HEADER_LENGTH
+        payload_len = len(self._buffer) - MEASUREMENT_HEADER_LENGTH
+        if payload_len > MAX_PAYLOAD_LENGTH:
+            raise ValueError(
+                f"Measurement payload too long: {payload_len} bytes (max {MAX_PAYLOAD_LENGTH})"
+            )
+        self._buffer[1] = payload_len
 
     def add_value8(
         self,
