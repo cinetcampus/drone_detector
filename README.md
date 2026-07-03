@@ -62,7 +62,7 @@ Voit muuttaa aggregointi-ikkunaa ajonaikaisella parametrilla, esim. 30 sekuntia:
 python3 detector.py --aggregate-seconds 30
 ```
 
-Anomaliat logitetaan konsoliin ja `anomalies.log`-tiedostoon.
+Tunnistukset logitetaan konsoliin ja `detections.log`-tiedostoon.
 Lisäksi tunnistin lähettää LoRaWAN-uplinkin kerran minuutissa:
 - payload: Measurement-paketti (measurement.cpp/h formaatti)
 - kenttä: `Observations` + `TimeSeries`
