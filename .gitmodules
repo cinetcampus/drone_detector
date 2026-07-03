@@ -1,0 +1,3 @@
+[submodule "rpi-lorawan"]
+	path = rpi-lorawan
+	url = git@github.com:cinetcampus/rpi-lorawan.git
