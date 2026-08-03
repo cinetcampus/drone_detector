@@ -111,7 +111,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1rem;
+      margin-bottom: .5rem;
     }
 
     .recordings-header h2 { font-size: 1.2rem; }
@@ -119,6 +119,63 @@
     .recording-count {
       font-size: .85rem;
       color: var(--text-muted);
+    }
+
+    .bulk-bar {
+      display: none;
+      align-items: center;
+      gap: .6rem;
+      padding: .5rem .8rem;
+      background: var(--accent);
+      border-radius: 10px;
+      margin-bottom: .75rem;
+    }
+
+    .bulk-bar.visible { display: flex; }
+
+    .bulk-bar-count {
+      flex: 1;
+      font-size: .85rem;
+      color: var(--text-muted);
+    }
+
+    .bulk-btn {
+      border: none;
+      border-radius: 8px;
+      padding: .4rem .9rem;
+      cursor: pointer;
+      font-size: .85rem;
+      background: var(--primary);
+      color: #fff;
+      transition: background .15s;
+    }
+
+    .bulk-btn:hover { background: var(--primary-hover); }
+
+    .bulk-btn.secondary {
+      background: rgba(255,255,255,.1);
+      color: var(--text);
+    }
+
+    .bulk-btn.secondary:hover { background: rgba(255,255,255,.2); }
+
+    .bulk-btn.danger {
+      background: rgba(231,76,60,.25);
+      color: #ffb2a9;
+    }
+
+    .bulk-btn.danger:hover { background: var(--danger); color: #fff; }
+
+    .rec-check {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .recording-item.selected {
+      outline: 2px solid var(--primary);
     }
 
     .recordings-list {
@@ -300,6 +357,7 @@
     </button>
     <div class="timer" id="timer">00:00</div>
     <div class="status-text" id="statusText" data-i18n="statusPressToStart">Paina aloittaaksesi äänityksen</div>
+
   </div>
 
   <!-- Player bar -->
@@ -313,6 +371,13 @@
   <div class="recordings-header">
     <h2 data-i18n="recordingsHeading">Tallenteet</h2>
     <span class="recording-count" id="recordingCount"></span>
+  </div>
+
+  <div class="bulk-bar" id="bulkBar">
+    <span class="bulk-bar-count" id="bulkCount"></span>
+    <button class="bulk-btn" id="bulkDownloadBtn">&#11015; Download selected</button>
+    <button class="bulk-btn danger" id="bulkDeleteBtn">&#128465;&#65039; Delete selected</button>
+    <button class="bulk-btn secondary" id="bulkClearBtn">Clear</button>
   </div>
 
   <ul class="recordings-list" id="recordingsList"></ul>
@@ -355,7 +420,11 @@
   const renameInput = document.getElementById('renameInput');
   const renameSave = document.getElementById('renameSave');
   const renameCancel = document.getElementById('renameCancel');
-
+  const bulkBar = document.getElementById('bulkBar');
+  const bulkCount = document.getElementById('bulkCount');
+  const bulkDownloadBtn = document.getElementById('bulkDownloadBtn');
+  const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+  const bulkClearBtn = document.getElementById('bulkClearBtn');
   let isRecording = false;
   let timerInterval = null;
   let startTime = 0;
@@ -386,6 +455,8 @@
       countPlural: 'tallennetta',
       deleteConfirm: 'Poistetaanko "{filename}"?',
       deleteFailed: 'Poistaminen epäonnistui',
+      bulkDeleteConfirm: 'Poistetaanko {count} tallenne(tta)? Tätä ei voi peruuttaa.',
+      bulkDeleteFailed: 'Poistaminen epäonnistui',
       renameFailed: 'Nimeäminen epäonnistui',
       loadingFailed: 'Tallenteiden haku epäonnistui'
     },
@@ -409,6 +480,8 @@
       downloadTitle: 'Download',
       renameActionTitle: 'Rename',
       deleteTitle: 'Delete',
+      bulkDeleteConfirm: 'Delete {count} recording(s)? This cannot be undone.',
+      bulkDeleteFailed: 'Delete failed',
       countSingular: 'recording',
       countPlural: 'recordings',
       deleteConfirm: 'Delete "{filename}"?',
@@ -509,6 +582,9 @@
     }
   });
 
+
+
+
   // ── Recordings list ─────────────────────────
   function formatSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
@@ -537,6 +613,7 @@
       emptyState.style.display = 'none';
       recordingsList.innerHTML = recordings.map(r => `
         <li class="recording-item" data-filename="${esc(r.filename)}">
+          <input type="checkbox" class="rec-check" onchange="toggleSelect('${esc(r.filename)}', this.checked)">
           <div class="recording-info">
             <div class="recording-name">${esc(r.filename)}</div>
             <div class="recording-meta">${formatDate(r.created)} · ${formatSize(r.size)}</div>
@@ -549,10 +626,104 @@
           </div>
         </li>
       `).join('');
+      // Restore checkbox state after re-render
+      selectedFiles.forEach(name => {
+        const li = recordingsList.querySelector(`[data-filename="${CSS.escape(name)}"]`);
+        if (li) {
+          li.querySelector('.rec-check').checked = true;
+          li.classList.add('selected');
+        }
+      });
+      updateBulkBar();
     } catch (e) {
       console.error(t('loadingFailed'), e);
     }
   }
+
+  // ── Multi-select & bulk download ────────────
+  const selectedFiles = new Set();
+
+  function toggleSelect(filename, checked) {
+    const li = recordingsList.querySelector(`[data-filename="${CSS.escape(filename)}"]`);
+    if (checked) {
+      selectedFiles.add(filename);
+      if (li) li.classList.add('selected');
+    } else {
+      selectedFiles.delete(filename);
+      if (li) li.classList.remove('selected');
+    }
+    updateBulkBar();
+  }
+
+  function updateBulkBar() {
+    const n = selectedFiles.size;
+    if (n > 0) {
+      bulkBar.classList.add('visible');
+      bulkCount.textContent = `${n} selected`;
+    } else {
+      bulkBar.classList.remove('visible');
+    }
+  }
+
+  bulkClearBtn.addEventListener('click', () => {
+    selectedFiles.clear();
+    recordingsList.querySelectorAll('.rec-check').forEach(cb => { cb.checked = false; });
+    recordingsList.querySelectorAll('.recording-item').forEach(li => li.classList.remove('selected'));
+    updateBulkBar();
+  });
+
+  bulkDownloadBtn.addEventListener('click', async () => {
+    if (selectedFiles.size === 0) return;
+    bulkDownloadBtn.disabled = true;
+    try {
+      const res = await fetch(`${API}/api/recordings/download-zip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filenames: [...selectedFiles] }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'recordings.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      alert(t('connectionError'));
+    }
+    bulkDownloadBtn.disabled = false;
+  });
+
+  bulkDeleteBtn.addEventListener('click', async () => {
+    if (selectedFiles.size === 0) return;
+    const count = selectedFiles.size;
+    if (!confirm(t('bulkDeleteConfirm', { count }))) return;
+    bulkDeleteBtn.disabled = true;
+    try {
+      const res = await fetch(`${API}/api/recordings/delete-many`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filenames: [...selectedFiles] }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Close player if any deleted file was playing
+        if (data.deleted && data.deleted.includes(nowPlaying.textContent)) {
+          playerClose.click();
+        }
+        selectedFiles.clear();
+        updateBulkBar();
+        loadRecordings();
+      } else {
+        alert(t('bulkDeleteFailed'));
+      }
+    } catch (e) {
+      alert(t('connectionError'));
+    }
+    bulkDeleteBtn.disabled = false;
+  });
 
   function esc(s) {
     const d = document.createElement('div');
@@ -643,12 +814,13 @@
   applyTranslations();
   loadRecordings();
 
-  // Sync state on page load (in case server is already recording)
-  (async () => {
+  // Poll server state — syncs UI when hardware buttons start/stop recording
+  async function pollStatus() {
     try {
       const res = await fetch(`${API}/api/status`);
       const data = await res.json();
-      if (data.is_recording) {
+      if (data.is_recording && !isRecording) {
+        // Recording started via hardware button
         isRecording = true;
         recordBtn.classList.add('recording');
         statusText.textContent = t('statusRecording');
@@ -657,9 +829,20 @@
         timerInterval = setInterval(() => {
           timer.textContent = formatTime((Date.now() - startTime) / 1000);
         }, 250);
+      } else if (!data.is_recording && isRecording) {
+        // Recording stopped via hardware button — reload list to show new file
+        isRecording = false;
+        recordBtn.classList.remove('recording');
+        recordBtn.disabled = false;
+        stopTimer();
+        statusText.textContent = t('statusPressToStart');
+        loadRecordings();
       }
     } catch (e) {}
-  })();
+  }
+
+  pollStatus();
+  setInterval(pollStatus, 2000);
 </script>
 
 </body>
