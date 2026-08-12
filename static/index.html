@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Detector Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header><div class="brand"><span class="brand-mark"><i></i></span>DETECTOR</div><div id="status" class="status"><span></span> CONNECTING</div></header>
+  <main>
+    <section class="intro"><p>REAL-TIME DETECTION</p><h1>Place your sensor.</h1><div>Drag the sensor to its position. Model detections appear automatically.</div></section>
+    <section class="card">
+      <div id="map" class="map">
+        <div id="leaflet-map" class="leaflet-map" role="application" aria-label="Detection map"></div>
+      </div>
+      <div class="panel">
+        <div class="sensor-info"><span>ACTIVE SENSOR</span><strong>Sensor 01</strong><small id="position">Position 63.8421, 23.1317</small></div>
+        <div id="result" class="result" aria-live="polite"><b>✓</b><div><span id="result-label">DETECTION</span><strong id="accuracy">Accuracy: —</strong></div></div>
+        <button id="debug" class="debug" hidden>DEBUG DETECT</button>
+      </div>
+    </section>
+    <section class="card" aria-label="Event log">
+      <div class="panel" style="display:block;overflow-x:auto">
+        <h2 style="margin:0 0 12px;font:700 18px/1.2 Georgia,serif">Event Log</h2>
+        <table id="event-log" style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:8px;border-bottom:1px solid #dce4df">arrive time</th>
+              <th style="text-align:left;padding:8px;border-bottom:1px solid #dce4df">accuracy</th>
+              <th style="text-align:left;padding:8px;border-bottom:1px solid #dce4df">detector</th>
+            </tr>
+          </thead>
+          <tbody id="event-log-body"></tbody>
+        </table>
+      </div>
+    </section>
+    <p class="help"><b>DRAG</b> the sensor to reposition it <i></i> detections arrive automatically</p>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
