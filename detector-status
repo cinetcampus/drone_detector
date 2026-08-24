@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+SCRIPTS_DIR="$(dirname "$(realpath "$0")")"
+PROJ_ROOT="$(dirname "$SCRIPTS_DIR")"
+
+check_service() {
+    local name="$1"
+    local session="$2"
+    local log="$3"
+
+    if tmux has-session -t "$session" 2>/dev/null; then
+        echo "$name: RUNNING (tmux session: $session)"
+    else
+        echo "$name: STOPPED"
+    fi
+
+    if [ -f "$log" ]; then
+        echo "  last log lines:"
+        tail -n 3 "$log" | sed 's/^/    /'
+    else
+        echo "  (no log file at $log)"
+    fi
+    echo
+}
+
+check_service "drone-detect" "drone-detect" "$PROJ_ROOT/logs/drone-detect-latest.log"
+check_service "detector-ui" "detector-ui" "$PROJ_ROOT/logs/detector-ui-latest.log"

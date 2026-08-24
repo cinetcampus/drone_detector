@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+SESSION="detector-ui"
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+    echo "detector-ui is already running (tmux session: $SESSION)"
+    exit 1
+fi
+PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
+LOG_DIR="$PROJ_ROOT/logs"
+mkdir -p "$LOG_DIR"
+
+tmux new-session -d -s "$SESSION" \
+	"cd $PROJ_ROOT/detector_ui && LOG_PATH=\"$LOG_DIR/detector-ui_\$\$.log\" && ln -sf \"\$(basename \"\$LOG_PATH\")\" \"$LOG_DIR/detector-ui-latest.log\" && exec .venv/bin/python3 -m uvicorn web:app --host 0.0.0.0 --port 8000 >> \"\$LOG_PATH\" 2>&1"
+echo "Started detector-ui (tmux session: $SESSION)"

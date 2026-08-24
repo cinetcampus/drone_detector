@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+SESSION="detector-ui"
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+    echo "detector-ui is not running"
+    exit 1
+fi
+tmux kill-session -t "$SESSION"
+echo "Stopped detector-ui"
