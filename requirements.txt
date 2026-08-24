@@ -3,4 +3,5 @@ scipy
 scikit-learn
 joblib
 sounddevice
+soundfile
 librosa

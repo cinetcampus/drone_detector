@@ -1,0 +1,36 @@
+{
+  "audio_root": "data/raw/private",
+  "bundle_fingerprint": "cb432160190d7958137876c5edce88ef7cf2d79a7f9c1f16ec28dd314cbdf335",
+  "counts": {
+    "labels": {
+      "drone": 1113,
+      "no_drone": 592
+    },
+    "rows": 1705,
+    "splits": {
+      "professor_test": {
+        "labels": {
+          "drone": 1113,
+          "no_drone": 592
+        },
+        "rows": 1705
+      }
+    }
+  },
+  "evaluation_only": true,
+  "feature_bundle": "artifacts/v2_16khz/features/private_real_features.npz",
+  "feature_count": 100,
+  "feature_set": "spectral_mfcc_v1",
+  "fit_or_tune_performed": false,
+  "frozen_scaler": "artifacts/v2_16khz/features/scaler.json",
+  "manifest": "artifacts/v2_16khz/features/private_real_manifest.csv",
+  "non_finite_replacements": 0,
+  "preprocessing_profile": "mono_resample_poly_16khz_v1",
+  "processed_sample_rate_hz": 16000,
+  "scaler_source_bundle_fingerprint": "263c18ba1343abf21f41c0e5e115bc68e17fa8d7278c717c1745f0df72c6c90d",
+  "schema_version": "v2_evaluation_feature_audit_v1",
+  "source_sample_rates_hz": [
+    16000,
+    48000
+  ]
+}
