@@ -147,6 +147,11 @@ main { padding-bottom: 25px; }
   padding: 20px 26px;
   border-top: 1px solid var(--line);
 }
+.sensor-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+}
 .sensor-info span,
 .result span {
   display: block;
@@ -180,6 +185,29 @@ main { padding-bottom: 25px; }
 }
 .result strong { display: block; font: 700 20px/1.1 Georgia, serif; color: #0d6e4e; }
 
+.confidence {
+}
+.confidence span {
+  display: block;
+  margin-bottom: 5px;
+  color: #87928d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+}
+.confidence strong {
+  display: block;
+  font: 700 17px/1.2 Georgia, serif;
+  color: var(--muted);
+  transition: color 0.3s;
+}
+.confidence small {
+  font: 400 17px/1.2 Georgia, serif;
+  color: #89958f;
+}
+.confidence.confidence-drone strong { color: #b22222; }
+.confidence.confidence-clear strong { color: #138a62; }
+
 .debug {
   height: 46px;
   padding: 0 20px;
@@ -191,6 +219,26 @@ main { padding-bottom: 25px; }
   font-weight: 800;
   letter-spacing: 0.12em;
   cursor: pointer;
+}
+
+.detector-toggle {
+  height: 46px;
+  padding: 0 20px;
+  color: #fff;
+  background: #0e3128;
+  border: 0;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+.detector-toggle.running {
+  background: #b22222;
+}
+.detector-toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .help { text-align: center; color: #87918c; font-size: 10px; }

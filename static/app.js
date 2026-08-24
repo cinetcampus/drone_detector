@@ -2,8 +2,12 @@ const positionText = document.querySelector("#position");
 const result = document.querySelector("#result");
 const accuracyText = document.querySelector("#accuracy");
 const resultLabel = document.querySelector("#result-label");
+const confidenceEl = document.querySelector("#confidence");
+const confidenceLabelEl = document.querySelector("#confidence-label");
+const confidenceScoreEl = document.querySelector("#confidence-score");
 const status = document.querySelector("#status");
 const debugButton = document.querySelector("#debug");
+const detectorToggle = document.querySelector("#detector-toggle");
 const eventLogBody = document.querySelector("#event-log-body");
 const maxLogRows = 100;
 const queryParams = new URLSearchParams(window.location.search);
@@ -137,6 +141,15 @@ function showMapImpact(lat, lng, accuracyValue) {
   requestAnimationFrame(tick);
 }
 
+function showConfidence(event) {
+  const isDrone = Boolean(event.is_drone);
+  const score = Number(event.confidence);
+  confidenceLabelEl.textContent = isDrone ? "DRONE" : "NO DRONE";
+  confidenceScoreEl.textContent = `${score.toFixed(1)}% probability of drone`;
+  confidenceEl.classList.toggle("confidence-drone", isDrone);
+  confidenceEl.classList.toggle("confidence-clear", !isDrone);
+}
+
 function showDetection(event) {
   let targetLat = sensorMarker.getLatLng().lat;
   let targetLng = sensorMarker.getLatLng().lng;
@@ -182,9 +195,12 @@ function startMockStream() {
   status.innerHTML = "<span></span> SIMULATION ONLINE";
   status.classList.add("online");
 
+  showConfidence({ is_drone: false, confidence: 0 });
   showDetection(createMockDetection());
   clearInterval(mockTimer);
   mockTimer = setInterval(() => {
+    const isDrone = Math.random() > 0.55;
+    showConfidence({ is_drone: isDrone, confidence: isDrone ? Number(getRandomInRange(55, 98).toFixed(1)) : 0 });
     showDetection(createMockDetection());
   }, 2600);
 }
@@ -201,6 +217,7 @@ function connect() {
     status.classList.add("online");
   });
   source.addEventListener("detection", message => showDetection(JSON.parse(message.data)));
+  source.addEventListener("confidence", message => showConfidence(JSON.parse(message.data)));
   source.onerror = () => {
     status.innerHTML = "<span></span> RECONNECTING";
     status.classList.remove("online");
@@ -213,7 +230,8 @@ function initMap() {
     attributionControl: true,
   }).setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 17);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  // Tiles are proxied and cached by the Pi; works offline after first online load.
+  L.tileLayer("/tiles/{z}/{x}/{y}.png", {
     maxZoom: 20,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
@@ -237,8 +255,32 @@ function initMap() {
   setSensorPosition(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng, false);
 }
 
-fetch("api/config").then(r => r.json()).then(config => { debugButton.hidden = !config.debug; });
+fetch("api/config").then(r => r.json()).then(config => {
+  debugButton.hidden = !config.debug;
+  detectorToggle.hidden = !config.showStopDetector;
+});
 debugButton.addEventListener("click", () => fetch("api/debug/detection", { method: "POST" }));
+
+function setDetectorToggleState(running) {
+  detectorToggle.textContent = running ? "STOP DETECTOR" : "START DETECTOR";
+  detectorToggle.classList.toggle("running", running);
+  detectorToggle.disabled = false;
+}
+
+function refreshDetectorStatus() {
+  fetch("api/detector/status")
+    .then(r => r.json())
+    .then(data => setDetectorToggleState(data.running));
+}
+
+detectorToggle.addEventListener("click", () => {
+  const isRunning = detectorToggle.classList.contains("running");
+  detectorToggle.disabled = true;
+  fetch(`api/detector/${isRunning ? "stop" : "start"}`, { method: "POST" })
+    .then(() => refreshDetectorStatus())
+    .catch(() => { detectorToggle.disabled = false; });
+});
 
 initMap();
 connect();
+refreshDetectorStatus();

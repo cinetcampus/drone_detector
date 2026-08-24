@@ -13,6 +13,7 @@ import requests
 
 # Osoite, johon web.py kuuntelee tunnistuksia. Ohita ympäristömuuttujilla tarvittaessa.
 DETECTOR_URL = os.getenv("DETECTOR_URL", "http://127.0.0.1:8000/api/detection")
+CONFIDENCE_URL = os.getenv("CONFIDENCE_URL", "http://127.0.0.1:8000/api/confidence")
 DETECTOR_TOKEN = os.getenv("DETECTOR_TOKEN", "")
 
 
@@ -47,6 +48,23 @@ def send_detection(
     except requests.RequestException as exc:
         # Älä kaada tunnistussilmukkaa, jos web-palvelin ei ole tavoitettavissa.
         print(f"[detector_client] Failed to send detection: {exc}")
+        return False
+
+
+def send_confidence(
+    confidence: float,
+    is_drone: bool,
+    timeout: float = 0.5,
+) -> bool:
+    """Lähetä live-luottamustaso web-sivulle. Palauttaa True onnistuessa."""
+    headers = {"X-Detector-Token": DETECTOR_TOKEN} if DETECTOR_TOKEN else {}
+    payload = {"confidence": confidence, "is_drone": is_drone}
+    try:
+        response = requests.post(CONFIDENCE_URL, json=payload, headers=headers, timeout=timeout)
+        response.raise_for_status()
+        return True
+    except requests.RequestException as exc:
+        print(f"[detector_client] Failed to send confidence: {exc}")
         return False
 
 
