@@ -6,7 +6,7 @@
 set -euo pipefail
 PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
 BRANCH="main"
-REPOS=(drone_detect detector_ui scripts)
+REPOS=(drone_detect detector_ui scripts Raspberry_Recorder)
 
 for repo in "${REPOS[@]}"; do
     echo "== $repo =="

@@ -5,9 +5,15 @@
 set -euo pipefail
 PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
 PI_HOST="rpi-ethernet"
-PI_BASE="workspace/drone_detector"
 BRANCH="main"
-REPOS=(drone_detect detector_ui scripts)
+# Local dir name -> path on the Pi (relative to the pi user's home).
+declare -A REPO_PI_PATH=(
+    [drone_detect]="workspace/drone_detector/drone_detect"
+    [detector_ui]="workspace/drone_detector/detector_ui"
+    [scripts]="workspace/drone_detector/scripts"
+    [Raspberry_Recorder]="workspace/audio_recorder"
+)
+REPOS=(drone_detect detector_ui scripts Raspberry_Recorder)
 
 for repo in "${REPOS[@]}"; do
     echo "== $repo =="
@@ -32,7 +38,7 @@ for repo in "${REPOS[@]}"; do
         echo "  commits: DIVERGED (laptop +$ahead / Pi +$behind) -- run pi-sync-pull"
     fi
 
-    dirty="$(ssh "$PI_HOST" "git -C $PI_BASE/$repo status --short" 2>/dev/null || echo "(could not check)")"
+    dirty="$(ssh "$PI_HOST" "git -C ${REPO_PI_PATH[$repo]} status --short" 2>/dev/null || echo "(could not check)")"
     if [ -z "$dirty" ]; then
         echo "  Pi working tree: clean"
     else
