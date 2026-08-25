@@ -18,7 +18,21 @@
       <div class="panel">
         <div class="sensor-info">
           <div><span>ACTIVE SENSOR</span><strong>Sensor 01</strong><small id="position">Position 63.8421, 23.1317</small></div>
-          <div id="confidence" class="confidence" aria-live="polite"><span>LIVE SIGNAL</span><strong id="confidence-label">—</strong><small id="confidence-score"></small></div>
+          <div id="confidence" class="confidence" aria-live="polite">
+            <span>LIVE SIGNAL</span>
+            <strong id="confidence-label">—</strong>
+            <small id="confidence-score"></small>
+            <div class="confidence-gauge">
+              <div class="confidence-gauge-track">
+                <div id="confidence-gauge-fill" class="confidence-gauge-fill"></div>
+                <div id="confidence-gauge-threshold" class="confidence-gauge-threshold" hidden></div>
+              </div>
+            </div>
+            <svg id="confidence-spark" class="confidence-spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+              <line id="confidence-spark-threshold" x1="0" x2="200" y1="36" y2="36" class="confidence-spark-threshold" hidden />
+              <polyline id="confidence-spark-line" points="" />
+            </svg>
+          </div>
         </div>
         <div id="result" class="result" aria-live="polite"><b>✓</b><div><span id="result-label">DETECTION</span><strong id="accuracy">Accuracy: —</strong></div></div>
         <button id="debug" class="debug" hidden>DEBUG DETECT</button>

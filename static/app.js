@@ -5,6 +5,13 @@ const resultLabel = document.querySelector("#result-label");
 const confidenceEl = document.querySelector("#confidence");
 const confidenceLabelEl = document.querySelector("#confidence-label");
 const confidenceScoreEl = document.querySelector("#confidence-score");
+const confidenceGaugeFillEl = document.querySelector("#confidence-gauge-fill");
+const confidenceGaugeThresholdEl = document.querySelector("#confidence-gauge-threshold");
+const confidenceSparkLineEl = document.querySelector("#confidence-spark-line");
+const confidenceSparkThresholdEl = document.querySelector("#confidence-spark-threshold");
+const CONFIDENCE_HISTORY_MS = 30000;
+const DEFAULT_MIN_ACCURACY = 60;
+let confidenceHistory = [];
 const status = document.querySelector("#status");
 const debugButton = document.querySelector("#debug");
 const detectorToggle = document.querySelector("#detector-toggle");
@@ -36,6 +43,12 @@ function getAccuracyTone(accuracyValue) {
   if (accuracy >= 95) return { color: "#e60000", className: "impact-high" };
   if (accuracy >= 85) return { color: "#e63946", className: "impact-mid" };
   return { color: "#ff5a3c", className: "impact-low" };
+}
+
+function getConfidenceColor(score, threshold) {
+  if (score >= threshold) return "#b22222";
+  if (score >= threshold - 20) return "#d98a1f";
+  return "#138a62";
 }
 
 function setSensorPosition(lat, lng, pan = false) {
@@ -141,13 +154,55 @@ function showMapImpact(lat, lng, accuracyValue) {
   requestAnimationFrame(tick);
 }
 
+function renderConfidenceSpark(threshold) {
+  const now = performance.now();
+  confidenceHistory = confidenceHistory.filter(p => now - p.t <= CONFIDENCE_HISTORY_MS);
+
+  const width = 200;
+  const height = 36;
+  const thresholdY = height - (threshold / 100) * height;
+  confidenceSparkThresholdEl.setAttribute("y1", thresholdY.toFixed(1));
+  confidenceSparkThresholdEl.setAttribute("y2", thresholdY.toFixed(1));
+  confidenceSparkThresholdEl.removeAttribute("hidden");
+
+  if (confidenceHistory.length < 2) {
+    confidenceSparkLineEl.setAttribute("points", "");
+    return;
+  }
+
+  const oldest = confidenceHistory[0].t;
+  const span = Math.max(1, now - oldest);
+  const points = confidenceHistory
+    .map(p => {
+      const x = (width * (p.t - oldest)) / span;
+      const y = height - (Math.max(0, Math.min(100, p.score)) / 100) * height;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  confidenceSparkLineEl.setAttribute("points", points);
+}
+
 function showConfidence(event) {
   const isDrone = Boolean(event.is_drone);
   const score = Number(event.confidence);
+  const threshold = Number.isFinite(Number(event.min_accuracy))
+    ? Number(event.min_accuracy)
+    : DEFAULT_MIN_ACCURACY;
+
   confidenceLabelEl.textContent = isDrone ? "DRONE" : "NO DRONE";
   confidenceScoreEl.textContent = `${score.toFixed(1)}% probability of drone`;
   confidenceEl.classList.toggle("confidence-drone", isDrone);
   confidenceEl.classList.toggle("confidence-clear", !isDrone);
+
+  const clamped = Math.max(0, Math.min(100, score));
+  const color = getConfidenceColor(clamped, threshold);
+  confidenceGaugeFillEl.style.width = `${clamped}%`;
+  confidenceGaugeFillEl.style.backgroundColor = color;
+  confidenceGaugeThresholdEl.style.left = `${Math.max(0, Math.min(100, threshold))}%`;
+  confidenceGaugeThresholdEl.removeAttribute("hidden");
+
+  confidenceHistory.push({ t: performance.now(), score: clamped });
+  renderConfidenceSpark(threshold);
 }
 
 function showDetection(event) {

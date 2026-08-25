@@ -32,6 +32,7 @@ class Detection(BaseModel):
 class Confidence(BaseModel):
     confidence: float   # 0–100, mean anomaly score of the current window
     is_drone: bool      # true when window meets anomaly-count threshold (ignores cooldown)
+    min_accuracy: Optional[float] = None  # detection-trigger threshold (%), for the UI gauge
 
 
 async def send_detection(detection: Detection):
@@ -68,6 +69,7 @@ async def post_confidence(
         "type": "confidence",
         "confidence": confidence.confidence,
         "is_drone": confidence.is_drone,
+        "min_accuracy": confidence.min_accuracy,
     })
     return {"status": "queued"}
 
