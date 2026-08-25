@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Run on the LAPTOP. Shows, for each project repo, whether the laptop and
+# the Pi agree on commits, and whether the Pi's working tree has any
+# uncommitted (possibly field-made) edits.
+set -euo pipefail
+PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
+PI_HOST="rpi-ethernet"
+PI_BASE="workspace/drone_detector"
+BRANCH="main"
+REPOS=(drone_detect detector_ui scripts)
+
+for repo in "${REPOS[@]}"; do
+    echo "== $repo =="
+    dir="$PROJ_ROOT/$repo"
+
+    if ! git -C "$dir" remote get-url pi >/dev/null 2>&1; then
+        echo "  no 'pi' remote configured here, skipping"
+        echo
+        continue
+    fi
+
+    git -C "$dir" fetch pi -q
+    read -r ahead behind < <(git -C "$dir" rev-list --left-right --count "$BRANCH...pi/$BRANCH")
+
+    if [ "$ahead" = 0 ] && [ "$behind" = 0 ]; then
+        echo "  commits: in sync"
+    elif [ "$behind" = 0 ]; then
+        echo "  commits: laptop is ahead by $ahead -- run pi-sync-push"
+    elif [ "$ahead" = 0 ]; then
+        echo "  commits: Pi is ahead by $behind -- run pi-sync-pull"
+    else
+        echo "  commits: DIVERGED (laptop +$ahead / Pi +$behind) -- run pi-sync-pull"
+    fi
+
+    dirty="$(ssh "$PI_HOST" "git -C $PI_BASE/$repo status --short" 2>/dev/null || echo "(could not check)")"
+    if [ -z "$dirty" ]; then
+        echo "  Pi working tree: clean"
+    else
+        echo "  Pi working tree: DIRTY"
+        echo "$dirty" | sed 's/^/    /'
+    fi
+    echo
+done
