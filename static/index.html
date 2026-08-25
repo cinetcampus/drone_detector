@@ -4,19 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Detector Map</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header><div class="brand"><span class="brand-mark"><i></i></span>DETECTOR</div><div id="status" class="status"><span></span> CONNECTING</div></header>
+  <header><div class="brand"><span class="brand-mark"><i></i></span>DETECTOR</div><button id="detector-toggle" class="detector-toggle">STOP DETECTOR</button><div id="status" class="status"><span></span> CONNECTING</div></header>
   <main>
-    <section class="intro"><p>REAL-TIME DETECTION</p><h1>Place your sensor.</h1><div>Drag the sensor to its position. Model detections appear automatically.</div></section>
+    <section class="intro"><p>REAL-TIME DETECTION</p></section>
     <section class="card">
       <div id="map" class="map">
         <div id="leaflet-map" class="leaflet-map" role="application" aria-label="Detection map"></div>
       </div>
       <div class="panel">
-        <div class="sensor-info"><span>ACTIVE SENSOR</span><strong>Sensor 01</strong><small id="position">Position 63.8421, 23.1317</small></div>
+        <div class="sensor-info">
+          <div><span>ACTIVE SENSOR</span><strong>Sensor 01</strong><small id="position">Position 63.8421, 23.1317</small></div>
+          <div id="confidence" class="confidence" aria-live="polite"><span>LIVE SIGNAL</span><strong id="confidence-label">—</strong><small id="confidence-score"></small></div>
+        </div>
         <div id="result" class="result" aria-live="polite"><b>✓</b><div><span id="result-label">DETECTION</span><strong id="accuracy">Accuracy: —</strong></div></div>
         <button id="debug" class="debug" hidden>DEBUG DETECT</button>
       </div>
@@ -38,7 +41,7 @@
     </section>
     <p class="help"><b>DRAG</b> the sensor to reposition it <i></i> detections arrive automatically</p>
   </main>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="leaflet.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
