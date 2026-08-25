@@ -8,6 +8,15 @@ PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
 LOG_DIR="$PROJ_ROOT/logs"
 mkdir -p "$LOG_DIR"
 
+# Name each run's log by a persistent session counter rather than PID, so
+# files sort and read in run order even when the Pi's clock is wrong (no
+# internet/RTC drift after a power cycle) and PIDs give no sense of order.
+SEQ_FILE="$LOG_DIR/.drone-detect-seq"
+SEQ=$(( $(cat "$SEQ_FILE" 2>/dev/null || echo 0) + 1 ))
+echo "$SEQ" > "$SEQ_FILE"
+LOG_PATH="$LOG_DIR/drone-detect_$(printf '%04d' "$SEQ").log"
+ln -sf "$(basename "$LOG_PATH")" "$LOG_DIR/drone-detect-latest.log"
+
 tmux new-session -d -s "$SESSION" \
-	"cd \"$PROJ_ROOT/drone_detect\" && LOG_PATH=\"$LOG_DIR/drone-detect_\$\$.log\" && ln -sf \"\$(basename \"\$LOG_PATH\")\" \"$LOG_DIR/drone-detect-latest.log\" && exec .venv/bin/python3 detector.py >> \"\$LOG_PATH\" 2>&1"
-echo "Started drone-detect (tmux session: $SESSION)"
+	"cd \"$PROJ_ROOT/drone_detect\" && exec .venv/bin/python3 detector.py >> \"$LOG_PATH\" 2>&1"
+echo "Started drone-detect (tmux session: $SESSION, log: $(basename "$LOG_PATH"))"
