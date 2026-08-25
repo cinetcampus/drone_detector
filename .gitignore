@@ -6,4 +6,3 @@ __pycache__/
 *.wav
 *.joblib
 *.npz
-Trained models/
