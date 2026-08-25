@@ -2,20 +2,27 @@
 """Real-time audio anomaly monitoring."""
 
 import logging
+import os
 import queue
 import signal
 import sys
 import argparse
+import threading
 import time
+from collections import deque
 from pathlib import Path
 
 import numpy as np
 import sounddevice as sd
 
+import joblib
+from sklearn.ensemble import IsolationForest
+
 import config
 from features import extract_features
 from model_bundle_detector import BundleModelDetector
 from measurement_packet import MeasurementFormat, MeasurementPacket, MeasurementType
+from detector_client import send_detection, send_confidence
 
 # Allow importing RadioLib wrapper from rpi-lorawan subdirectory.
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -29,13 +36,27 @@ except Exception:  # pragma: no cover - optional at runtime
     RadioLibClient = None
     RadioLibError = RuntimeError
 
-# Setup logging
+# Setup logging: one file per process (named by PID) plus a "latest" symlink,
+# so a single long-lived log can't grow unbounded or blur together unrelated runs.
+LOG_DIR = Path(config.LOG_DIR)
+if not LOG_DIR.is_absolute():
+    LOG_DIR = (PROJECT_ROOT / LOG_DIR).resolve()
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE_PATH = LOG_DIR / f"detections_{os.getpid()}.log"
+LATEST_LOG_LINK = LOG_DIR / "detections-latest.log"
+try:
+    if LATEST_LOG_LINK.is_symlink() or LATEST_LOG_LINK.exists():
+        LATEST_LOG_LINK.unlink()
+    LATEST_LOG_LINK.symlink_to(LOG_FILE_PATH.name)
+except OSError:
+    pass  # symlinks unsupported on this filesystem; logging still works without it
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(config.LOG_FILE),
+        logging.FileHandler(LOG_FILE_PATH),
     ],
 )
 logger = logging.getLogger(__name__)
@@ -90,7 +111,9 @@ def init_lora_client():
             pin_dio0=config.LORA_PIN_DIO0,
             pin_rst=config.LORA_PIN_RST,
             adr_enabled=config.LORAWAN_ADR_ENABLED,
-            uplink_dr=config.LORAWAN_UPLINK_DR if not config.LORAWAN_ADR_ENABLED else None,
+            uplink_dr=config.LORAWAN_UPLINK_DR
+            if not config.LORAWAN_ADR_ENABLED
+            else None,
         )
     except Exception as e:
         logger.warning(f"LoRa reporting disabled: init failed ({e})")
@@ -140,6 +163,46 @@ def send_anomaly_report(lora_client, per_chunk_predictions: list[int]):
             )
         except (RadioLibError, FileNotFoundError) as e:
             logger.error(f"Failed to send minute anomaly report part {idx}: {e}")
+
+
+class AnomalyDetector:
+    """Baseline IsolationForest anomaly detector for normal audio."""
+
+    def __init__(self):
+        self.model: IsolationForest | None = None
+        self.threshold: float = 0.0
+        self._model_path = Path(config.BASELINE_FILE)
+
+    def train(self, features: np.ndarray) -> None:
+        self.model = IsolationForest(contamination=0.05, random_state=42)
+        self.model.fit(features)
+        scores = -self.model.score_samples(features)
+        self.threshold = float(
+            np.mean(scores) + config.THRESHOLD_MULTIPLIER * np.std(scores)
+        )
+
+    def save(self) -> None:
+        if self.model is None:
+            raise RuntimeError("Model not trained yet.")
+        joblib.dump(
+            {"model": self.model, "threshold": self.threshold}, self._model_path
+        )
+
+    def load(self) -> None:
+        if not self._model_path.exists():
+            raise FileNotFoundError(
+                f"Baseline model not found at '{self._model_path}'. "
+                "Run train_baseline.py first."
+            )
+        data = joblib.load(self._model_path)
+        self.model = data["model"]
+        self.threshold = float(data["threshold"])
+
+    def is_anomaly(self, features: np.ndarray) -> tuple[bool, float]:
+        if self.model is None:
+            raise RuntimeError("Model not loaded.")
+        score = float(-self.model.score_samples(features.reshape(1, -1))[0])
+        return score > self.threshold, score
 
 
 def parse_args() -> argparse.Namespace:
@@ -218,7 +281,10 @@ def main():
     logger.info("Listening... (Ctrl+C to stop)")
 
     chunk_samples = int(config.SAMPLE_RATE * config.CHUNK_DURATION)
-    stride_samples = int(config.SAMPLE_RATE * getattr(config, "DETECTION_STRIDE_SECONDS", config.CHUNK_DURATION))
+    stride_samples = int(
+        config.SAMPLE_RATE
+        * getattr(config, "DETECTION_STRIDE_SECONDS", config.CHUNK_DURATION)
+    )
     if stride_samples <= 0:
         print("ERROR: DETECTION_STRIDE_SECONDS must be > 0")
         sys.exit(1)
@@ -226,14 +292,27 @@ def main():
         print("ERROR: DETECTION_STRIDE_SECONDS cannot be greater than CHUNK_DURATION")
         sys.exit(1)
     logger.info(
-        f"Window={config.CHUNK_DURATION:.2f}s stride={stride_samples/config.SAMPLE_RATE:.2f}s "
-        f"overlap={(1.0 - stride_samples/max(chunk_samples, 1))*100:.0f}%"
+        f"Window={config.CHUNK_DURATION:.2f}s stride={stride_samples / config.SAMPLE_RATE:.2f}s "
+        f"overlap={(1.0 - stride_samples / max(chunk_samples, 1)) * 100:.0f}%"
+    )
+
+    detection_window_chunks = int(getattr(config, "DETECTION_WINDOW_CHUNKS", 5))
+    detection_min_anomalies = int(getattr(config, "DETECTION_MIN_ANOMALIES_IN_WINDOW", 2))
+    detection_cooldown = float(getattr(config, "DETECTION_COOLDOWN_SECONDS", 30.0))
+    detection_min_accuracy = float(getattr(config, "DETECTION_MIN_ACCURACY", 60.0)) / 100.0
+    logger.info(
+        f"Detection trigger: {detection_min_anomalies}/{detection_window_chunks} chunks, "
+        f"min_accuracy={detection_min_accuracy*100:.0f}%, cooldown={detection_cooldown:.1f}s"
     )
 
     buffer = np.array([], dtype=np.float32)
     anomaly_count = 0
     total_chunks = 0
-  
+    anomaly_window: deque[int] = deque(maxlen=detection_window_chunks)
+    score_window: deque[float] = deque(maxlen=detection_window_chunks)
+    last_detection_time = 0.0  # epoch zero allows first event to fire immediately
+    last_confidence_send = 0.0
+
     aggregate_predictions: list[int] = []
     last_report_ts = time.monotonic()
     lora_client = init_lora_client()
@@ -281,6 +360,7 @@ def main():
                             f"LIVE chunk={total_chunks} score={score:.4f} "
                             f"prediction={'drone' if is_anomaly else 'no_drone'}"
                         )
+
                 if is_anomaly:
                     anomaly_count += 1
                     logger.warning(
@@ -289,11 +369,39 @@ def main():
                         f"Count: {anomaly_count}/{total_chunks}"
                     )
 
+                anomaly_window.append(1 if is_anomaly else 0)
+                score_window.append(score)
+                anomaly_scores = [s for a, s in zip(anomaly_window, score_window) if a]
+                accuracy = sum(anomaly_scores) / len(anomaly_scores) if anomaly_scores else 0.0
+                live_confidence = sum(score_window) / len(score_window) if score_window else 0.0
+                now_mono = time.monotonic()
+                if (
+                    sum(anomaly_window) >= detection_min_anomalies
+                    and accuracy >= detection_min_accuracy
+                    and now_mono - last_detection_time >= detection_cooldown
+                ):
+                    send_detection(accuracy * 100, "Drone", "detector1")
+                    last_detection_time = now_mono
+                    logger.info(
+                        f"Detection event sent (window={sum(anomaly_window)}/{detection_window_chunks}, "
+                        f"accuracy={accuracy*100:.1f}%)"
+                    )
+
+                # Send live confidence update ~once per second (non-blocking).
+                is_drone_now = sum(anomaly_window) >= detection_min_anomalies
+                if now_mono - last_confidence_send >= 1.0:
+                    threading.Thread(
+                        target=send_confidence,
+                        args=(live_confidence * 100, is_drone_now),
+                        daemon=True,
+                    ).start()
+                    last_confidence_send = now_mono
+
                 aggregate_predictions.append(1 if is_anomaly else 0)
 
     logger.info(
         f"Stopped. Total: {total_chunks} chunks, "
-        f"{anomaly_count} drones detected ({100*anomaly_count/max(total_chunks,1):.1f}%)"
+        f"{anomaly_count} drones detected ({100 * anomaly_count / max(total_chunks, 1):.1f}%)"
     )
 
 
