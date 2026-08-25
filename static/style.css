@@ -186,6 +186,10 @@ main { padding-bottom: 25px; }
 .result strong { display: block; font: 700 20px/1.1 Georgia, serif; color: #0d6e4e; }
 
 .confidence {
+  /* Fixed so the gauge/sparkline below don't resize as the score text's
+     digit count changes (e.g. "5.0%" vs "95.7%" vs "100.0%"). */
+  width: 200px;
+  flex-shrink: 0;
 }
 .confidence span {
   display: block;
