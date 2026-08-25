@@ -3,8 +3,15 @@
 # Audio settings
 DEVICE_INDEX = 0  # USB Audio Device (card 0)
 # DEVICE_INDEX = 5  # Logitech headset
-# SAMPLE_RATE = 48000
-SAMPLE_RATE = 16000
+# Mic's native rate (see probe_audio_device.py's "default samplerate").
+# Captured at this rate, then resampled down to SAMPLE_RATE with
+# scipy.signal.resample_poly -- the same canonical preprocessing
+# (mono_resample_poly_16khz_v1) the model was trained/validated on. Asking
+# the sound device for SAMPLE_RATE directly instead would leave the actual
+# resampling to PortAudio/ALSA, which is a mismatch from that preprocessing
+# and typically lower-quality (more aliasing) than resample_poly.
+MIC_SAMPLE_RATE = 44100
+SAMPLE_RATE = 16000  # processing rate the model/features expect
 CHANNELS = 1
 CHUNK_DURATION = 1.0  # seconds per analysis window
 DETECTION_STRIDE_SECONDS = (

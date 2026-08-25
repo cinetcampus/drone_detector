@@ -9,10 +9,12 @@ import argparse
 import threading
 import time
 from collections import deque
+from math import gcd
 from pathlib import Path
 
 import numpy as np
 import sounddevice as sd
+from scipy.signal import resample_poly
 
 import joblib
 from sklearn.ensemble import IsolationForest
@@ -255,7 +257,11 @@ def main():
 
     logger.info("Audio anomaly detector started.")
     logger.info(f"Detector backend: {backend_txt}")
-    logger.info(f"Device: {config.DEVICE_INDEX}, Rate: {config.SAMPLE_RATE} Hz")
+    logger.info(
+        f"Device: {config.DEVICE_INDEX}, "
+        f"Rate: {getattr(config, 'MIC_SAMPLE_RATE', config.SAMPLE_RATE)} Hz "
+        f"(processing at {config.SAMPLE_RATE} Hz)"
+    )
     logger.info(f"Detector threshold: {threshold_txt}")
     logger.info(f"Aggregation/report interval: {report_interval:.1f}s")
     debug_live = bool(getattr(config, "DEBUG_LIVE_PREDICTIONS", False))
@@ -280,6 +286,16 @@ def main():
         f"Window={config.CHUNK_DURATION:.2f}s stride={stride_samples / config.SAMPLE_RATE:.2f}s "
         f"overlap={(1.0 - stride_samples / max(chunk_samples, 1)) * 100:.0f}%"
     )
+
+    mic_sample_rate = int(getattr(config, "MIC_SAMPLE_RATE", config.SAMPLE_RATE))
+    resample_gcd = gcd(config.SAMPLE_RATE, mic_sample_rate)
+    resample_up = config.SAMPLE_RATE // resample_gcd
+    resample_down = mic_sample_rate // resample_gcd
+    if mic_sample_rate != config.SAMPLE_RATE:
+        logger.info(
+            f"Capturing at {mic_sample_rate} Hz, resampling to {config.SAMPLE_RATE} Hz "
+            f"(matches the model's resample_poly-based training preprocessing)"
+        )
 
     detection_window_chunks = int(getattr(config, "DETECTION_WINDOW_CHUNKS", 5))
     detection_min_anomalies = int(getattr(config, "DETECTION_MIN_ANOMALIES_IN_WINDOW", 2))
@@ -310,7 +326,7 @@ def main():
 
     with sd.InputStream(
         device=config.DEVICE_INDEX,
-        samplerate=config.SAMPLE_RATE,
+        samplerate=mic_sample_rate,
         channels=config.CHANNELS,
         dtype="float32",
         blocksize=4096,
@@ -328,7 +344,10 @@ def main():
             except queue.Empty:
                 continue
 
-            buffer = np.append(buffer, data.flatten())
+            raw = data.flatten()
+            if resample_up != resample_down:
+                raw = resample_poly(raw, resample_up, resample_down).astype(np.float32)
+            buffer = np.append(buffer, raw)
 
             while len(buffer) >= chunk_samples:
                 chunk = buffer[:chunk_samples]
