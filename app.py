@@ -318,6 +318,22 @@ def _start_recording_internal():
             stderr=subprocess.PIPE,
         )
 
+        # arecord fails almost instantly (e.g. "Device or resource busy") if
+        # the mic is already held by another process, such as the detector.
+        # Give it a brief moment to fail before reporting success, otherwise
+        # the UI/OLED shows "recording" while no file is actually written.
+        time.sleep(0.3)
+        if proc.poll() is not None:
+            stderr_output = proc.stderr.read().decode(errors="replace").strip() if proc.stderr else ""
+            log.error("Aanitys ei kaynnistynyt (mikrofoni varattu?): %s", stderr_output or "tuntematon virhe")
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            _set_display_notice("Mic busy!", 5)
+            return False, {
+                "error": "Mikrofoni ei ole kaytettavissa (toinen ohjelma kayttaa sita?)",
+                "detail": stderr_output,
+            }
+
         _recording["active"] = True
         _recording["process"] = proc
         _recording["filepath"] = filepath
