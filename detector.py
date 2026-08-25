@@ -312,6 +312,12 @@ def main():
     score_window: deque[float] = deque(maxlen=detection_window_chunks)
     last_detection_time = 0.0  # epoch zero allows first event to fire immediately
     last_confidence_send = 0.0
+    # Peak accuracy seen since the last sent event. Kept up to date every chunk
+    # (even while cooldown blocks sending) so that when cooldown lifts we report
+    # the strongest reading during the approach instead of a stale/instantaneous
+    # one. Reset whenever the drone drops back out of range, so it can't bleed
+    # into an unrelated later pass.
+    peak_accuracy_since_send = 0.0
 
     aggregate_predictions: list[int] = []
     last_report_ts = time.monotonic()
@@ -375,16 +381,24 @@ def main():
                 accuracy = sum(anomaly_scores) / len(anomaly_scores) if anomaly_scores else 0.0
                 live_confidence = sum(score_window) / len(score_window) if score_window else 0.0
                 now_mono = time.monotonic()
-                if (
+
+                trigger_condition = (
                     sum(anomaly_window) >= detection_min_anomalies
                     and accuracy >= detection_min_accuracy
-                    and now_mono - last_detection_time >= detection_cooldown
-                ):
-                    send_detection(accuracy * 100, "Drone", "detector1")
+                )
+                if trigger_condition:
+                    peak_accuracy_since_send = max(peak_accuracy_since_send, accuracy)
+                else:
+                    peak_accuracy_since_send = 0.0
+
+                if trigger_condition and now_mono - last_detection_time >= detection_cooldown:
+                    report_accuracy = peak_accuracy_since_send
+                    send_detection(report_accuracy * 100, "Drone", "detector1")
                     last_detection_time = now_mono
+                    peak_accuracy_since_send = 0.0
                     logger.info(
                         f"Detection event sent (window={sum(anomaly_window)}/{detection_window_chunks}, "
-                        f"accuracy={accuracy*100:.1f}%)"
+                        f"accuracy={report_accuracy*100:.1f}%)"
                     )
 
                 # Send live confidence update ~once per second (non-blocking).

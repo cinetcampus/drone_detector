@@ -39,7 +39,7 @@ BUNDLE_SCORE_THRESHOLD_OVERRIDE = None
 # last DETECTION_WINDOW_CHUNKS chunks are anomalies, subject to a cooldown.
 DETECTION_WINDOW_CHUNKS = 5  # sliding window size in chunks
 DETECTION_MIN_ANOMALIES_IN_WINDOW = 2  # anomalies required in the window to trigger
-DETECTION_COOLDOWN_SECONDS = 30.0  # minimum seconds between consecutive events
+DETECTION_COOLDOWN_SECONDS = 8.0  # minimum seconds between consecutive events
 DETECTION_MIN_ACCURACY = 60.0  # minimum mean anomaly-chunk score (%) to fire an event
 
 # Reporting
