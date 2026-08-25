@@ -343,12 +343,101 @@
       margin-bottom: 1rem;
       opacity: .3;
     }
+
+    /* ── Light theme ───────────────────────────── */
+    body.light {
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --primary: #e94560;
+      --primary-hover: #c73650;
+      --accent: #c8d6e5;
+      --text: #1a1a2e;
+      --text-muted: #555;
+      --success: #27ae60;
+      --danger: #e74c3c;
+    }
+
+    body.light .btn-icon:hover { background: #a8bcd4; }
+
+    /* ── Settings bar ──────────────────────────── */
+    .settings-bar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 1.2rem;
+      margin-bottom: 1rem;
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      font-size: .82rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--accent);
+      border-radius: 20px;
+      transition: background .2s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+    }
+
+    .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); }
   </style>
 </head>
 <body>
 
 <div class="container">
   <h1>🎙️ <span data-i18n="appName">Raspi recorder</span></h1>
+
+  <!-- Settings bar -->
+  <div class="settings-bar">
+    <label class="toggle-label">
+      <span id="themeLabel">Light mode</span>
+      <span class="toggle-switch">
+        <input type="checkbox" id="themeToggle">
+        <span class="toggle-slider"></span>
+      </span>
+    </label>
+    <label class="toggle-label">
+      <span id="autoPlayLabel">Auto-play</span>
+      <span class="toggle-switch">
+        <input type="checkbox" id="autoPlayToggle">
+        <span class="toggle-slider"></span>
+      </span>
+    </label>
+  </div>
 
   <!-- Record panel -->
   <div class="record-panel">
@@ -425,6 +514,8 @@
   const bulkDownloadBtn = document.getElementById('bulkDownloadBtn');
   const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
   const bulkClearBtn = document.getElementById('bulkClearBtn');
+  const themeToggle = document.getElementById('themeToggle');
+  const autoPlayToggle = document.getElementById('autoPlayToggle');
   let isRecording = false;
   let timerInterval = null;
   let startTime = 0;
@@ -500,6 +591,29 @@
   const locale = detectLocale();
   const i18n = messages[locale];
 
+  // ── Theme ────────────────────────────────────
+  function applyTheme(light) {
+    document.body.classList.toggle('light', light);
+    document.getElementById('themeLabel').textContent = light ? 'Dark mode' : 'Light mode';
+    themeToggle.checked = light;
+  }
+
+  const savedTheme = localStorage.getItem('theme');
+  applyTheme(savedTheme === 'light');
+
+  themeToggle.addEventListener('change', () => {
+    const light = themeToggle.checked;
+    applyTheme(light);
+    localStorage.setItem('theme', light ? 'light' : 'dark');
+  });
+
+  // ── Auto-play preference ─────────────────────
+  autoPlayToggle.checked = localStorage.getItem('autoPlay') === 'true';
+
+  autoPlayToggle.addEventListener('change', () => {
+    localStorage.setItem('autoPlay', autoPlayToggle.checked);
+  });
+
   function t(key, vars = {}) {
     const template = i18n[key] || messages.fi[key] || key;
     return template.replace(/\{(\w+)\}/g, (_, token) => vars[token] ?? '');
@@ -553,7 +667,7 @@
         if (res.ok) {
           statusText.textContent = t('statusSaved', { filename: data.filename });
           loadRecordings();
-          playRecording(data.filename);
+          if (autoPlayToggle.checked) playRecording(data.filename);
         } else {
           statusText.textContent = data.error || t('statusError');
         }
