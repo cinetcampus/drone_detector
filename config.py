@@ -72,10 +72,6 @@ LORAWAN_UPLINK_DR = 5
 
 # Paths
 BASELINE_FILE = "baseline_model.pkl"
-# One log file per detector.py process (named by PID), plus a "latest" symlink.
-# Shared with scripts/detector-start's tmux stdout/stderr capture, so both files
-# for a given run end up side by side in the same directory with matching PIDs.
-LOG_DIR = "../logs"
 
 # Training
 BASELINE_DURATION = 30  # seconds of normal audio to record for training

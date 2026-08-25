@@ -2,7 +2,6 @@
 """Real-time audio anomaly monitoring."""
 
 import logging
-import os
 import queue
 import signal
 import sys
@@ -36,28 +35,14 @@ except Exception:  # pragma: no cover - optional at runtime
     RadioLibClient = None
     RadioLibError = RuntimeError
 
-# Setup logging: one file per process (named by PID) plus a "latest" symlink,
-# so a single long-lived log can't grow unbounded or blur together unrelated runs.
-LOG_DIR = Path(config.LOG_DIR)
-if not LOG_DIR.is_absolute():
-    LOG_DIR = (PROJECT_ROOT / LOG_DIR).resolve()
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE_PATH = LOG_DIR / f"detections_{os.getpid()}.log"
-LATEST_LOG_LINK = LOG_DIR / "detections-latest.log"
-try:
-    if LATEST_LOG_LINK.is_symlink() or LATEST_LOG_LINK.exists():
-        LATEST_LOG_LINK.unlink()
-    LATEST_LOG_LINK.symlink_to(LOG_FILE_PATH.name)
-except OSError:
-    pass  # symlinks unsupported on this filesystem; logging still works without it
-
+# Log to stdout only. scripts/detector-start already redirects each run's
+# stdout+stderr into its own sequence-numbered file with a "latest" symlink,
+# and (unlike a logging.FileHandler here) that also captures an unhandled
+# traceback if the process crashes.
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(LOG_FILE_PATH),
-    ],
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
