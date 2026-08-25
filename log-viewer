@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Run on the LAPTOP. Opens a local browser-based UI over the session logs in
+# logs/ (the directory scripts/pi-sync-logs fills from the Pi) -- lists every
+# session and lets you open one to see its summary and score chart, without
+# needing the CLI.
+set -euo pipefail
+PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
+python3 "$PROJ_ROOT/drone_detect/log_viewer.py" "$PROJ_ROOT/logs" "$@"
