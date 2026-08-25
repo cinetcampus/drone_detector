@@ -411,6 +411,7 @@ def main():
                     threading.Thread(
                         target=send_confidence,
                         args=(live_confidence * 100, is_drone_now),
+                        kwargs={"min_accuracy": detection_min_accuracy * 100},
                         daemon=True,
                     ).start()
                     last_confidence_send = now_mono

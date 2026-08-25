@@ -54,11 +54,16 @@ def send_detection(
 def send_confidence(
     confidence: float,
     is_drone: bool,
+    min_accuracy: Optional[float] = None,
     timeout: float = 0.5,
 ) -> bool:
-    """Lähetä live-luottamustaso web-sivulle. Palauttaa True onnistuessa."""
+    """Lähetä live-luottamustaso web-sivulle. Palauttaa True onnistuessa.
+
+    min_accuracy : detection-trigger threshold (%), so the UI can mark it
+                   on the live gauge; omitted if not known.
+    """
     headers = {"X-Detector-Token": DETECTOR_TOKEN} if DETECTOR_TOKEN else {}
-    payload = {"confidence": confidence, "is_drone": is_drone}
+    payload = {"confidence": confidence, "is_drone": is_drone, "min_accuracy": min_accuracy}
     try:
         response = requests.post(CONFIDENCE_URL, json=payload, headers=headers, timeout=timeout)
         response.raise_for_status()
