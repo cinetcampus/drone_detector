@@ -202,8 +202,8 @@ main {
 .confidence-text {
   /* Fixed so the gauge/sparkline block next to it doesn't shift horizontally
      as the label ("DRONE" vs "NO DRONE") or score digit count changes
-     (measured max ~204px, e.g. "DRONE" + "100.0% probability of drone"). */
-  width: 220px;
+     (measured max ~306px for "100.0% probability of drone" at this size). */
+  width: 330px;
   flex-shrink: 0;
 }
 .confidence-text span {
@@ -221,7 +221,7 @@ main {
   transition: color 0.3s;
 }
 .confidence-text small {
-  font: 400 18px/1.2 Georgia, serif;
+  font: 400 27px/1.2 Georgia, serif;
   color: #89958f;
 }
 .confidence.confidence-drone .confidence-text strong { color: #b22222; }
