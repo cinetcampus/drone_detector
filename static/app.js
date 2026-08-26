@@ -63,17 +63,16 @@ function addEventLogRow(event) {
   const accuracy = Number(event.accuracy);
   const accuracyValue = Number.isFinite(accuracy) ? `${accuracy.toFixed(1)}%` : "-";
   const detector = event.detector || event.label || "Detection";
-  const time = new Date().toLocaleString("fi-FI", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+  // Same-session demo log: time-of-day is what matters, date would just
+  // crowd the narrow side-column table.
+  const time = new Date().toLocaleTimeString("fi-FI", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
   });
 
   const row = document.createElement("tr");
-  row.innerHTML = `<td style="padding:8px;border-bottom:1px solid #eef2ef">${time}</td><td style="padding:8px;border-bottom:1px solid #eef2ef">${accuracyValue}</td><td style="padding:8px;border-bottom:1px solid #eef2ef">${detector}</td>`;
+  row.innerHTML = `<td>${time}</td><td>${accuracyValue}</td><td>${detector}</td>`;
   eventLogBody.prepend(row);
 
   while (eventLogBody.rows.length > maxLogRows) {

@@ -10,49 +10,52 @@
 <body>
   <header><div class="brand"><span class="brand-mark"><i></i></span>DETECTOR</div><button id="detector-toggle" class="detector-toggle">STOP DETECTOR</button><div id="status" class="status"><span></span> CONNECTING</div></header>
   <main>
-    <section class="intro"><p>REAL-TIME DETECTION</p></section>
-    <section class="card">
-      <div id="map" class="map">
-        <div id="leaflet-map" class="leaflet-map" role="application" aria-label="Detection map"></div>
-      </div>
-      <div class="panel">
-        <div class="sensor-info">
-          <div><span>ACTIVE SENSOR</span><strong>Sensor 01</strong><small id="position">Position 63.8421, 23.1317</small></div>
-          <div id="confidence" class="confidence" aria-live="polite">
-            <span>LIVE SIGNAL</span>
-            <strong id="confidence-label">—</strong>
-            <small id="confidence-score"></small>
-            <div class="confidence-gauge">
-              <div class="confidence-gauge-track">
-                <div id="confidence-gauge-fill" class="confidence-gauge-fill"></div>
-                <div id="confidence-gauge-threshold" class="confidence-gauge-threshold" hidden></div>
+    <div class="dashboard">
+      <section class="card map-card">
+        <div id="map" class="map">
+          <div id="leaflet-map" class="leaflet-map" role="application" aria-label="Detection map"></div>
+        </div>
+        <div class="panel">
+          <div class="sensor-info">
+            <div><span>ACTIVE SENSOR</span><strong>Sensor 01</strong><small id="position">Position 63.8421, 23.1317</small></div>
+            <div id="confidence" class="confidence" aria-live="polite">
+              <span>LIVE SIGNAL</span>
+              <strong id="confidence-label">—</strong>
+              <small id="confidence-score"></small>
+              <div class="confidence-gauge">
+                <div class="confidence-gauge-track">
+                  <div id="confidence-gauge-fill" class="confidence-gauge-fill"></div>
+                  <div id="confidence-gauge-threshold" class="confidence-gauge-threshold" hidden></div>
+                </div>
               </div>
+              <svg id="confidence-spark" class="confidence-spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+                <line id="confidence-spark-threshold" x1="0" x2="200" y1="36" y2="36" class="confidence-spark-threshold" hidden />
+                <polyline id="confidence-spark-line" points="" />
+              </svg>
             </div>
-            <svg id="confidence-spark" class="confidence-spark" viewBox="0 0 200 36" preserveAspectRatio="none">
-              <line id="confidence-spark-threshold" x1="0" x2="200" y1="36" y2="36" class="confidence-spark-threshold" hidden />
-              <polyline id="confidence-spark-line" points="" />
-            </svg>
+          </div>
+          <div id="result" class="result" aria-live="polite"><b>✓</b><div><span id="result-label">DETECTION</span><strong id="accuracy">Accuracy: —</strong></div></div>
+          <button id="debug" class="debug" hidden>DEBUG DETECT</button>
+        </div>
+      </section>
+      <section class="card event-log-card" aria-label="Event log">
+        <div class="event-log-panel">
+          <h2>Event Log</h2>
+          <div class="event-log-scroll">
+            <table id="event-log">
+              <thead>
+                <tr>
+                  <th>arrive time</th>
+                  <th>accuracy</th>
+                  <th>detector</th>
+                </tr>
+              </thead>
+              <tbody id="event-log-body"></tbody>
+            </table>
           </div>
         </div>
-        <div id="result" class="result" aria-live="polite"><b>✓</b><div><span id="result-label">DETECTION</span><strong id="accuracy">Accuracy: —</strong></div></div>
-        <button id="debug" class="debug" hidden>DEBUG DETECT</button>
-      </div>
-    </section>
-    <section class="card" aria-label="Event log">
-      <div class="panel" style="display:block;overflow-x:auto">
-        <h2 style="margin:0 0 12px;font:700 18px/1.2 Georgia,serif">Event Log</h2>
-        <table id="event-log" style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr>
-              <th style="text-align:left;padding:8px;border-bottom:1px solid #dce4df">arrive time</th>
-              <th style="text-align:left;padding:8px;border-bottom:1px solid #dce4df">accuracy</th>
-              <th style="text-align:left;padding:8px;border-bottom:1px solid #dce4df">detector</th>
-            </tr>
-          </thead>
-          <tbody id="event-log-body"></tbody>
-        </table>
-      </div>
-    </section>
+      </section>
+    </div>
     <p class="help"><b>DRAG</b> the sensor to reposition it <i></i> detections arrive automatically</p>
   </main>
   <script src="leaflet.js"></script>
