@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Same as detector-ui-start, but hides the STOP DETECTOR button (debug/testing
+# only) so it doesn't appear during a live demo.
+set -euo pipefail
+DETECTOR_SHOW_STOP=0 exec "$(dirname "$0")/detector-ui-start"

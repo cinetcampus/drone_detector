@@ -18,5 +18,6 @@ LOG_PATH="$LOG_DIR/detector-ui_$(printf '%04d' "$SEQ").log"
 ln -sf "$(basename "$LOG_PATH")" "$LOG_DIR/detector-ui-latest.log"
 
 tmux new-session -d -s "$SESSION" \
+	-e "DETECTOR_SHOW_STOP=${DETECTOR_SHOW_STOP:-1}" \
 	"cd $PROJ_ROOT/detector_ui && exec .venv/bin/python3 -m uvicorn web:app --host 0.0.0.0 --port 8000 >> \"$LOG_PATH\" 2>&1"
 echo "Started detector-ui (tmux session: $SESSION, log: $(basename "$LOG_PATH"))"
