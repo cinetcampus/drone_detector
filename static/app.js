@@ -38,6 +38,89 @@ const sensorIcon = L.divIcon({
   iconAnchor: [17, 17],
 });
 
+// Dummy sensors along a line through the real one, forming an evenly-spaced
+// "fence" -- for demo purposes only, not backed by any real detector.
+// Counts are independent per side; FENCE_BEARING_DEGREES is the compass
+// bearing (0=N, 90=E, 180=S, 270=W) of the "positive" side -- the other
+// side runs the opposite direction automatically.
+const DUMMY_SENSORS_NW = 5;
+const DUMMY_SENSORS_SE = 3;
+const DUMMY_SENSOR_SPACING_METERS = 150;
+const FENCE_BEARING_DEGREES = 135; // SE; the NW side is just the reverse of this
+
+const dummySensorIcon = L.divIcon({
+  className: "sensor-marker-wrap",
+  html: "<div class=\"sensor-marker-dummy\"><span class=\"sensor-marker-dummy-core\"></span></div>",
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+});
+
+// meters may be negative to go the opposite way along the same bearing.
+function offsetByBearingMeters(lat, lng, bearingDegrees, meters) {
+  const bearingRad = (bearingDegrees * Math.PI) / 180;
+  const metersPerDegreeLat = 111320;
+  const metersPerDegreeLng = 111320 * Math.cos((lat * Math.PI) / 180);
+  return {
+    lat: lat + (meters * Math.cos(bearingRad)) / metersPerDegreeLat,
+    lng: lng + (meters * Math.sin(bearingRad)) / metersPerDegreeLng,
+  };
+}
+
+function dummySensorOffsets() {
+  const offsets = [];
+  for (let i = DUMMY_SENSORS_NW; i >= 1; i--) offsets.push(-i * DUMMY_SENSOR_SPACING_METERS);
+  for (let i = 1; i <= DUMMY_SENSORS_SE; i++) offsets.push(i * DUMMY_SENSOR_SPACING_METERS);
+  return offsets;
+}
+
+// No GPS at the demo site: the real sensor gets dragged to the right spot
+// on the map by eye, so the dummy "fence" needs to follow it (it's defined
+// relative to the real sensor, not fixed to DEFAULT_CENTER), and the chosen
+// position needs to survive a page reload since there's no backend to save
+// it to. localStorage covers both -- per-browser, but that's fine since the
+// demo always runs from the same laptop.
+const SENSOR_POSITION_STORAGE_KEY = "detector-sensor-position";
+let dummyMarkers = [];
+
+function loadSavedSensorPosition() {
+  try {
+    if (queryParams.get("resetPosition") === "1") {
+      localStorage.removeItem(SENSOR_POSITION_STORAGE_KEY);
+      return null;
+    }
+    const raw = localStorage.getItem(SENSOR_POSITION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Number.isFinite(parsed.lat) && Number.isFinite(parsed.lng)) return parsed;
+  } catch (e) {
+    // localStorage unavailable (private browsing etc.) -- just use the default.
+  }
+  return null;
+}
+
+function saveSensorPosition(lat, lng) {
+  try {
+    localStorage.setItem(SENSOR_POSITION_STORAGE_KEY, JSON.stringify({ lat, lng }));
+  } catch (e) {
+    // Persistence is a convenience, not required for the page to work.
+  }
+}
+
+function updateDummySensorPositions(centerLat, centerLng) {
+  dummySensorOffsets().forEach((meters, index) => {
+    const pos = offsetByBearingMeters(centerLat, centerLng, FENCE_BEARING_DEGREES, meters);
+    if (dummyMarkers[index]) {
+      dummyMarkers[index].setLatLng([pos.lat, pos.lng]);
+    } else if (map) {
+      dummyMarkers[index] = L.marker([pos.lat, pos.lng], {
+        icon: dummySensorIcon,
+        title: `Sensor ${String(index + 2).padStart(2, "0")} (demo)`,
+        interactive: false,
+      }).addTo(map);
+    }
+  });
+}
+
 function getAccuracyTone(accuracyValue) {
   const accuracy = Number(accuracyValue);
   if (accuracy >= 95) return { color: "#e60000", className: "impact-high" };
@@ -56,6 +139,8 @@ function setSensorPosition(lat, lng, pan = false) {
   sensorMarker.setLatLng([lat, lng]);
   if (pan && map) map.panTo([lat, lng], { animate: true, duration: 0.5 });
   positionText.textContent = `Position ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  saveSensorPosition(lat, lng);
+  updateDummySensorPositions(lat, lng);
 }
 
 function addEventLogRow(event) {
@@ -279,10 +364,12 @@ function connect() {
 }
 
 function initMap() {
+  const startCenter = loadSavedSensorPosition() || DEFAULT_CENTER;
+
   map = L.map("leaflet-map", {
     zoomControl: true,
     attributionControl: true,
-  }).setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 17);
+  }).setView([startCenter.lat, startCenter.lng], 17);
 
   // Tiles are proxied and cached by the Pi; works offline after first online load.
   L.tileLayer("/tiles/{z}/{x}/{y}.png", {
@@ -290,7 +377,7 @@ function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 
-  sensorMarker = L.marker([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], {
+  sensorMarker = L.marker([startCenter.lat, startCenter.lng], {
     draggable: true,
     title: "Sensor 01",
     icon: sensorIcon,
@@ -299,6 +386,7 @@ function initMap() {
   sensorMarker.on("drag", e => {
     const pos = e.target.getLatLng();
     positionText.textContent = `Position ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`;
+    updateDummySensorPositions(pos.lat, pos.lng);
   });
 
   sensorMarker.on("dragend", e => {
@@ -306,7 +394,10 @@ function initMap() {
     setSensorPosition(pos.lat, pos.lng, false);
   });
 
-  setSensorPosition(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng, false);
+  // Creates the dummy markers on first call, and keeps them in sync with
+  // the real sensor's position (dragged, loaded from storage, or moved by a
+  // detection event) on every call after.
+  setSensorPosition(startCenter.lat, startCenter.lng, false);
 }
 
 fetch("api/config").then(r => r.json()).then(config => {

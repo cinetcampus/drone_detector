@@ -391,6 +391,26 @@ main {
   animation: sensor-core-glow 2.6s ease-in-out infinite;
 }
 
+/* Demo-only fence sensors either side of the real one -- static and muted,
+   so the real (animated, draggable) sensor stays the visual focal point. */
+.sensor-marker-dummy {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #97a29c;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 3px 10px #18372c33;
+}
+
+.sensor-marker-dummy-core {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e7ede9;
+}
+
 .sensor-marker.sensor-impact-high,
 .sensor-marker.sensor-impact-mid,
 .sensor-marker.sensor-impact-low {
