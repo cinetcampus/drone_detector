@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Run the bundle detector against a WAV file instead of the live microphone."""
 
-import sys
+import argparse
+import time
 from collections import deque
 from math import gcd
 from pathlib import Path
@@ -13,11 +14,20 @@ import config
 from detector_client import send_detection
 from model_bundle_detector import BundleModelDetector
 
-if len(sys.argv) != 2:
-    print(f"Usage: {sys.argv[0]} <audio_file.wav>")
-    sys.exit(1)
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("audio_file", help="WAV file to replay through the detector")
+parser.add_argument(
+    "--real-time",
+    action="store_true",
+    help=(
+        "Pace chunks to arrive at the same cadence a live mic capture would "
+        "(one new chunk every DETECTION_STRIDE_SECONDS) instead of running "
+        "as fast as possible."
+    ),
+)
+args = parser.parse_args()
 
-audio, sr = sf.read(sys.argv[1], dtype="float32")
+audio, sr = sf.read(args.audio_file, dtype="float32")
 if audio.ndim > 1:
     audio = audio[:, 0]
 
@@ -58,6 +68,8 @@ detection_min_accuracy = float(getattr(config, "DETECTION_MIN_ACCURACY", 60.0)) 
 print(
     f"Detection trigger: {detection_min_anomalies}/{detection_window_chunks} chunks, min_accuracy={detection_min_accuracy * 100:.0f}%, cooldown={detection_cooldown:.1f}s"
 )
+if args.real_time:
+    print(f"Real-time mode: pacing to {config.DETECTION_STRIDE_SECONDS:.2f}s/chunk")
 print()
 
 pos = 0
@@ -68,7 +80,13 @@ anomalies_in_window: deque[int] = deque(maxlen=detection_window_chunks)
 score_window: deque[float] = deque(maxlen=detection_window_chunks)
 # Simulate wall-clock time from audio timestamps to honour cooldown against recording time.
 last_detection_audio_time = -detection_cooldown
+start_wall = time.monotonic()
 while pos + chunk_samples <= len(audio):
+    if args.real_time:
+        target_wall = start_wall + total * config.DETECTION_STRIDE_SECONDS
+        sleep_for = target_wall - time.monotonic()
+        if sleep_for > 0:
+            time.sleep(sleep_for)
     chunk = audio[pos : pos + chunk_samples]
     is_anomaly, score = detector.is_anomaly(chunk)
     t = pos / config.SAMPLE_RATE
