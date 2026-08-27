@@ -2,6 +2,7 @@
 """Run the bundle detector against a WAV file instead of the live microphone."""
 
 import argparse
+import threading
 import time
 from collections import deque
 from math import gcd
@@ -11,7 +12,7 @@ import numpy as np
 import soundfile as sf
 
 import config
-from detector_client import send_detection
+from detector_client import send_confidence, send_detection
 from model_bundle_detector import BundleModelDetector
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -80,6 +81,11 @@ anomalies_in_window: deque[int] = deque(maxlen=detection_window_chunks)
 score_window: deque[float] = deque(maxlen=detection_window_chunks)
 # Simulate wall-clock time from audio timestamps to honour cooldown against recording time.
 last_detection_audio_time = -detection_cooldown
+# Peak accuracy seen since the last sent event, mirroring detector.py: reports the
+# strongest reading during an approach instead of whatever accuracy happens to be
+# current the instant cooldown lifts.
+peak_accuracy_since_send = 0.0
+last_confidence_send = 0.0
 start_wall = time.monotonic()
 while pos + chunk_samples <= len(audio):
     if args.real_time:
@@ -98,18 +104,40 @@ while pos + chunk_samples <= len(audio):
     score_window.append(score)
     anomaly_scores = [s for a, s in zip(anomalies_in_window, score_window) if a]
     accuracy = sum(anomaly_scores) / len(anomaly_scores) if anomaly_scores else 0.0
-    if (
+    live_confidence = sum(score_window) / len(score_window) if score_window else 0.0
+
+    trigger_condition = (
         sum(anomalies_in_window) >= detection_min_anomalies
         and accuracy >= detection_min_accuracy
-        and t - last_detection_audio_time >= detection_cooldown
-    ):
-        ok = send_detection(accuracy * 100, "Drone", "detector1")
+    )
+    if trigger_condition:
+        peak_accuracy_since_send = max(peak_accuracy_since_send, accuracy)
+    else:
+        peak_accuracy_since_send = 0.0
+
+    if trigger_condition and t - last_detection_audio_time >= detection_cooldown:
+        report_accuracy = peak_accuracy_since_send
+        ok = send_detection(report_accuracy * 100, "Drone", "detector1")
         status = "sent" if ok else "FAILED"
         print(
-            f"  → Detection event {status} (window={sum(anomalies_in_window)}/{detection_window_chunks}, accuracy={accuracy * 100:.1f}%)"
+            f"  → Detection event {status} (window={sum(anomalies_in_window)}/{detection_window_chunks}, accuracy={report_accuracy * 100:.1f}%)"
         )
         last_detection_audio_time = t
+        peak_accuracy_since_send = 0.0
         events_sent += 1
+
+    if args.real_time:
+        is_drone_now = sum(anomalies_in_window) >= detection_min_anomalies
+        now_wall = time.monotonic()
+        if now_wall - last_confidence_send >= 1.0:
+            threading.Thread(
+                target=send_confidence,
+                args=(live_confidence * 100, is_drone_now),
+                kwargs={"min_accuracy": detection_min_accuracy * 100},
+                daemon=True,
+            ).start()
+            last_confidence_send = now_wall
+
     pos += stride_samples
     total += 1
 
