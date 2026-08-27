@@ -63,6 +63,17 @@ PAGE_CSS = """
   form.candidate label { margin-right: 1rem; font-size: 0.85rem; }
   form.candidate input { width: 4.5rem; }
   .backlink { display: inline-block; margin-bottom: 1rem; }
+  .chart-toggle { display: none; }
+  .chart-legend { margin: 0.4rem 0; font-size: 0.85rem; }
+  .chart-legend label { margin-right: 1.25rem; cursor: pointer; user-select: none; }
+  .swatch { display: inline-block; width: 20px; height: 0; margin-right: 5px;
+            vertical-align: middle; border-top-width: 3px; }
+  .swatch-model { border-top-style: dotted; border-top-color: #e07b00; }
+  .swatch-event { border-top-style: dashed; border-top-color: #999; }
+  #toggle-model-thr:not(:checked) ~ .chart-wrap .model-threshold-line { display: none; }
+  #toggle-event-thr:not(:checked) ~ .chart-wrap .event-threshold-line { display: none; }
+  #toggle-model-thr:not(:checked) ~ .chart-legend .legend-model { opacity: 0.4; }
+  #toggle-event-thr:not(:checked) ~ .chart-legend .legend-event { opacity: 0.4; }
 """
 
 
@@ -135,12 +146,25 @@ def render_index(entries: list[Entry]) -> bytes:
     return page("Session logs", body)
 
 
-def render_svg_chart(sess: Session, width: int = 760, height: int = 160) -> str:
+def render_svg_chart(sess: Session, width: int = 760, height: int = 260) -> str:
+    """Score-over-time chart: fixed 0-100% scale (scores are always a
+    probability, so this never needs to rescale to the data -- rescaling to
+    the observed max is what made a quiet, no-drone session's noise fill the
+    whole chart and look meaningful when it wasn't) plus the model's own
+    per-chunk decision threshold and the app-level event-trigger threshold,
+    each independently toggleable via the checkbox-hack (no JS in this tool).
+    """
     if not sess.chunks:
         return ""
+    margin_left = 34
+    margin_y = 6
+    plot_h = height - 2 * margin_y
+
     t0, t1 = sess.chunks[0].ts, sess.chunks[-1].ts
     span = (t1 - t0).total_seconds() or 1.0
-    maxscore = max((c.score for c in sess.chunks), default=1.0) or 1.0
+
+    def y_for_frac(frac: float) -> float:
+        return margin_y + plot_h - frac * plot_h
 
     buckets = min(400, len(sess.chunks))
     bucket_vals: list[list[float]] = [[] for _ in range(buckets)]
@@ -150,43 +174,103 @@ def render_svg_chart(sess: Session, width: int = 760, height: int = 160) -> str:
 
     points = []
     for i, vals in enumerate(bucket_vals):
-        x = width * i / (buckets - 1) if buckets > 1 else 0.0
+        x = margin_left + width * i / (buckets - 1) if buckets > 1 else margin_left
         v = max(vals) if vals else 0.0
-        y = height - (v / maxscore) * height
-        points.append(f"{x:.1f},{y:.1f}")
+        points.append(f"{x:.1f},{y_for_frac(v):.1f}")
     polyline = " ".join(points)
 
-    threshold_line = ""
+    total_w = margin_left + width
+    grid = []
+    for pct in (0, 25, 50, 75, 100):
+        gy = y_for_frac(pct / 100.0)
+        grid.append(
+            f'<line x1="{margin_left}" y1="{gy:.1f}" x2="{total_w}" y2="{gy:.1f}" '
+            f'stroke="#eee" stroke-width="1" />'
+        )
+        grid.append(
+            f'<text x="{margin_left - 5}" y="{gy + 3:.1f}" font-size="10" fill="#888" '
+            f'text-anchor="end">{pct}</text>'
+        )
+
+    model_threshold_line = ""
+    if sess.model_threshold_pct is not None:
+        ty = y_for_frac(sess.model_threshold_pct / 100.0)
+        model_threshold_line = (
+            f'<line class="model-threshold-line" x1="{margin_left}" y1="{ty:.1f}" '
+            f'x2="{total_w}" y2="{ty:.1f}" stroke="#e07b00" stroke-width="1.5" '
+            f'stroke-dasharray="1,3" stroke-linecap="round" />'
+        )
+
+    event_threshold_line = ""
     if sess.min_accuracy_pct is not None:
-        thr = sess.min_accuracy_pct / 100.0
-        if thr <= maxscore:
-            ty = height - (thr / maxscore) * height
-            threshold_line = (
-                f'<line x1="0" y1="{ty:.1f}" x2="{width}" y2="{ty:.1f}" '
-                f'stroke="#999" stroke-dasharray="4,3" />'
-            )
+        ty = y_for_frac(sess.min_accuracy_pct / 100.0)
+        event_threshold_line = (
+            f'<line class="event-threshold-line" x1="{margin_left}" y1="{ty:.1f}" '
+            f'x2="{total_w}" y2="{ty:.1f}" stroke="#999" stroke-width="1.5" '
+            f'stroke-dasharray="6,3" />'
+        )
 
     marks = []
     for e in sess.events:
-        x = width * (e.ts - t0).total_seconds() / span
+        x = margin_left + width * (e.ts - t0).total_seconds() / span
         marks.append(
-            f'<line x1="{x:.1f}" y1="0" x2="{x:.1f}" y2="{height}" '
+            f'<line x1="{x:.1f}" y1="{margin_y}" x2="{x:.1f}" y2="{margin_y + plot_h}" '
             f'stroke="#e63946" stroke-width="1.5" opacity="0.75" />'
         )
 
-    return (
-        f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
+    svg = (
+        f'<svg viewBox="0 0 {total_w} {height}" width="100%" height="{height}" '
         f'preserveAspectRatio="none" style="background:#fafafa;border:1px solid #e5e5e5;'
         f'border-radius:6px;">'
-        f"{threshold_line}"
+        f"{''.join(grid)}"
+        f"{event_threshold_line}{model_threshold_line}"
         f'<polyline points="{polyline}" fill="none" stroke="#2a6f97" stroke-width="1.5" />'
         f"{''.join(marks)}"
         "</svg>"
     )
 
+    toggles = []
+    if sess.model_threshold_pct is not None:
+        toggles.append(
+            '<input type="checkbox" id="toggle-model-thr" class="chart-toggle" checked>'
+        )
+    if sess.min_accuracy_pct is not None:
+        toggles.append(
+            '<input type="checkbox" id="toggle-event-thr" class="chart-toggle" checked>'
+        )
+    legend_items = []
+    if sess.model_threshold_pct is not None:
+        legend_items.append(
+            "<label for='toggle-model-thr' class='legend-model'>"
+            "<span class='swatch swatch-model'></span>"
+            f"model threshold ({sess.model_threshold_pct:.1f}%)</label>"
+        )
+    if sess.min_accuracy_pct is not None:
+        legend_items.append(
+            "<label for='toggle-event-thr' class='legend-event'>"
+            "<span class='swatch swatch-event'></span>"
+            f"event threshold ({sess.min_accuracy_pct:.0f}%)</label>"
+        )
 
-def render_session(entry: Entry, candidate: dict) -> bytes:
-    sess = entry.session
+    return (
+        "".join(toggles)
+        + f"<div class='chart-legend'>{''.join(legend_items)}</div>"
+        + f"<div class='chart-wrap'>{svg}</div>"
+    )
+
+
+def render_detail(
+    title: str,
+    sess: Session,
+    candidate: dict,
+    back_href: str = "/",
+    back_label: str = "all sessions",
+) -> bytes:
+    """Shared session/recording detail page: chart, replay form, summary text.
+
+    Used by log_viewer's per-session page and batch_test's per-recording page
+    alike, since both just need to show the same things about a Session.
+    """
     buf = io.StringIO()
     with redirect_stdout(buf):
         print_session_summary(sess)
@@ -201,7 +285,7 @@ def render_session(entry: Entry, candidate: dict) -> bytes:
 
     chart = render_svg_chart(sess)
     chart_legend = (
-        "<p class='muted'>Blue: score over time. Dashed grey: min_accuracy threshold. "
+        "<p class='muted'>Blue: score over time (fixed 0-100% scale). "
         "Red: a detection event was actually sent.</p>"
         if chart
         else ""
@@ -219,13 +303,17 @@ def render_session(entry: Entry, candidate: dict) -> bytes:
     """
 
     body = (
-        "<a class='backlink' href='/'>&larr; all sessions</a>"
-        f"<h1>{html.escape(entry.file.name)}</h1>"
+        f"<a class='backlink' href='{back_href}'>&larr; {back_label}</a>"
+        f"<h1>{html.escape(title)}</h1>"
         f"{chart}{chart_legend}"
         f"{form}"
         f"<pre>{html.escape(summary_text)}</pre>"
     )
-    return page(entry.file.name, body)
+    return page(title, body)
+
+
+def render_session(entry: Entry, candidate: dict) -> bytes:
+    return render_detail(entry.file.name, entry.session, candidate)
 
 
 def make_handler(logs_dir: Path):

@@ -39,6 +39,7 @@ TRIGGER_RE = re.compile(
     r"Detection trigger: (\d+)/(\d+) chunks, min_accuracy=([\d.]+)%, cooldown=([\d.]+)s"
 )
 DEVICE_RE = re.compile(r"Device: (\S+), Rate: (\d+) Hz")
+MODEL_THRESHOLD_RE = re.compile(r"Detector threshold: \S+=([\d.]+)")
 OVERFLOW_RE = re.compile(r"\[WARNING\] Audio status: (.+)")
 
 DATE_FMT = "%Y-%m-%d %H:%M:%S,%f"
@@ -73,6 +74,7 @@ class Session:
     min_accuracy_pct: float | None = None
     cooldown_s: float | None = None
     sample_rate: int | None = None
+    model_threshold_pct: float | None = None
     chunks: list[Chunk] = field(default_factory=list)
     events: list[Event] = field(default_factory=list)
     audio_warnings: list[tuple[datetime, str]] = field(default_factory=list)
@@ -104,6 +106,9 @@ def parse_log(path: Path) -> list[Session]:
                 continue
             if m2 := DEVICE_RE.search(line):
                 current.sample_rate = int(m2.group(2))
+                continue
+            if m2 := MODEL_THRESHOLD_RE.search(line):
+                current.model_threshold_pct = float(m2.group(1)) * 100.0
                 continue
             if m2 := LIVE_RE.search(line):
                 current.chunks.append(
@@ -222,6 +227,8 @@ def print_session_summary(sess: Session) -> None:
     scores = [c.score for c in sess.chunks]
     drone_chunks = [c for c in sess.chunks if c.is_anomaly]
     cfg_bits = []
+    if sess.model_threshold_pct is not None:
+        cfg_bits.append(f"model_threshold={sess.model_threshold_pct:.1f}%")
     if sess.window_chunks is not None:
         cfg_bits.append(f"{sess.min_anomalies}/{sess.window_chunks} chunks")
     if sess.min_accuracy_pct is not None:
