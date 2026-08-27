@@ -12,7 +12,19 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 app = FastAPI()
-event_queue: asyncio.Queue = asyncio.Queue()
+# Fan-out to every connected /api/events client: each connection gets its own
+# queue (registered on connect, dropped on disconnect in the finally block
+# below), and broadcast() puts each event on all of them. A single shared
+# queue would only deliver each event to whichever one client's get() won the
+# race, silently dropping it for every other viewer (or during an
+# EventSource reconnect, for everyone).
+event_subscribers: set[asyncio.Queue] = set()
+
+
+async def broadcast(event: dict) -> None:
+    for subscriber_queue in list(event_subscribers):
+        await subscriber_queue.put(event)
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS_DIR = os.path.join(BASE_DIR, "..", "scripts")
@@ -37,7 +49,7 @@ class Confidence(BaseModel):
 
 async def send_detection(detection: Detection):
     """Kutsu tätä, kun tekoälymalli tekee tunnistuksen."""
-    await event_queue.put({
+    await broadcast({
         "type": "detection",
         "accuracy": detection.accuracy,
         "label": detection.label,
@@ -65,7 +77,7 @@ async def post_confidence(
 ):
     if DETECTOR_TOKEN and x_detector_token != DETECTOR_TOKEN:
         raise HTTPException(status_code=401, detail="Invalid detector token")
-    await event_queue.put({
+    await broadcast({
         "type": "confidence",
         "confidence": confidence.confidence,
         "is_drone": confidence.is_drone,
@@ -95,16 +107,21 @@ async def debug_detection():
 @app.get("/api/events")
 async def events(request: Request):
     async def event_stream():
-        yield "event: connected\ndata: {}\n\n"
-        while True:
-            if await request.is_disconnected():
-                break
-            try:
-                event = await asyncio.wait_for(event_queue.get(), timeout=15)
-            except asyncio.TimeoutError:
-                yield ": keep-alive\n\n"  # heartbeat, keeps the connection open
-                continue
-            yield f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+        subscriber_queue: asyncio.Queue = asyncio.Queue()
+        event_subscribers.add(subscriber_queue)
+        try:
+            yield "event: connected\ndata: {}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(subscriber_queue.get(), timeout=15)
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"  # heartbeat, keeps the connection open
+                    continue
+                yield f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+        finally:
+            event_subscribers.discard(subscriber_queue)
 
     return StreamingResponse(
         event_stream(),
