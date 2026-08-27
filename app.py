@@ -50,8 +50,7 @@ RECORDINGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "recor
 print("RECORDING_DIR " + RECORDINGS_DIR)
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
-# USB Audio Device (hw:0"
-ALSA_DEVICE = "plughw:CARD=Headset,DEV=0"
+ALSA_DEVICE = "plughw:3,0"  # USB Audio Device (hw:3,0 per sounddevice's device list)
 SAMPLE_RATE = 48000
 CHANNELS = 1
 
