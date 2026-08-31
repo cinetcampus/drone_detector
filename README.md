@@ -6,14 +6,15 @@ each subdirectory below).
 
 ## Components
 
-- **`drone_detect/`** — the detection engine: audio capture, feature extraction,
-  trained models, and the batch-testing / log-viewing tools used to evaluate them.
-  Includes `rpi-lorawan` as a git submodule (LoRaWAN radio client).
-- **`detector_ui/`** — web UI client that displays live detections.
-- **`Raspberry_Recorder/`** — standalone audio recorder app used on the Pi.
-- **`scripts/`** — operational tooling to start/stop/inspect the demo (`detector-start`,
-  `detector-ui-start`, `detector-status`, `log-viewer`, `batch-test`, ...) plus the
-  `wifi-on`/`wifi-off`/`wifi-status` helpers used on the Pi.
+- **[`drone_detect/`](drone_detect/README.md)** — the detection engine: audio capture,
+  feature extraction, trained models, and the batch-testing / log-viewing tools used
+  to evaluate them. Includes `rpi-lorawan` as a git submodule (LoRaWAN radio client).
+- **[`detector_ui/`](detector_ui/README.md)** — web UI client that displays live detections.
+- **[`Raspberry_Recorder/`](Raspberry_Recorder/README.md)** — standalone audio recorder
+  app used on the Pi.
+- **[`scripts/`](scripts/README.md)** — operational tooling to start/stop/inspect the demo
+  (`detector-start`, `detector-ui-start`, `detector-status`, `log-viewer`, `batch-test`,
+  ...) plus the `wifi-on`/`wifi-off`/`wifi-status` helpers used on the Pi.
 
 ## Getting started
 
