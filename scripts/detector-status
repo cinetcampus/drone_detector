@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+SCRIPTS_DIR="$(dirname "$(realpath "$0")")"
+PROJ_ROOT="$(dirname "$SCRIPTS_DIR")"
+
+# Only colorize when stdout is a real terminal, so redirecting to a file or
+# piping (e.g. into another command) doesn't get raw escape codes.
+if [ -t 1 ]; then
+    GREEN="$(tput setaf 2)"
+    RED="$(tput setaf 1)"
+    RESET="$(tput sgr0)"
+else
+    GREEN=""
+    RED=""
+    RESET=""
+fi
+
+check_service() {
+    local name="$1"
+    local session="$2"
+    local log="$3"
+
+    if tmux has-session -t "$session" 2>/dev/null; then
+        echo "$name: ${GREEN}RUNNING${RESET} (tmux session: $session)"
+    else
+        echo "$name: ${RED}STOPPED${RESET}"
+    fi
+
+    if [ -f "$log" ]; then
+        echo "  last log lines:"
+        tail -n 3 "$log" | sed 's/^/    /'
+    else
+        echo "  (no log file at $log)"
+    fi
+    echo
+}
+
+check_service "drone-detect" "drone-detect" "$PROJ_ROOT/logs/drone-detect-latest.log"
+check_service "detector-ui" "detector-ui" "$PROJ_ROOT/logs/detector-ui-latest.log"

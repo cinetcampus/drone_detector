@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+SESSION="drone-detect"
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+    echo "drone-detect is not running"
+    exit 1
+fi
+tmux kill-session -t "$SESSION"
+echo "Stopped drone-detect"

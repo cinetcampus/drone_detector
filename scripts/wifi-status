@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Run on the Pi (directly, or remotely via
+# `ssh rpi-ethernet workspace/drone_detector/scripts/wifi-status`).
+# Reports whether WiFi is currently enabled. Same detection logic as the
+# hardware WiFi button in Raspberry_Recorder/app.py (detect_wifi_enabled()):
+# try nmcli first, fall back to rfkill if nmcli gives no answer.
+set -uo pipefail
+
+state="$(nmcli -t -f WIFI g 2>/dev/null)"
+if [ "$state" = "enabled" ]; then
+    echo "WiFi: ON"
+    exit 0
+elif [ "$state" = "disabled" ]; then
+    echo "WiFi: OFF"
+    exit 0
+fi
+
+if command -v rfkill >/dev/null 2>&1; then
+    rfkill_out="$(rfkill list wifi 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+    if echo "$rfkill_out" | grep -q "soft blocked: yes"; then
+        echo "WiFi: OFF"
+        exit 0
+    elif echo "$rfkill_out" | grep -q "soft blocked: no"; then
+        echo "WiFi: ON"
+        exit 0
+    fi
+fi
+
+echo "WiFi: unknown (nmcli/rfkill unavailable or gave no answer)"
+exit 1

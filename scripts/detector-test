@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+SESSION="detector-ui"
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+  echo "$SESSION is not running!"
+  exit 1
+fi
+PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
+
+cd "$PROJ_ROOT/drone_detect" || exit 1
+echo "Running test file, this might take a moment..."
+.venv/bin/python -u test_file.py test_samples/positive_test.wav >/tmp/detector-test.log 2>&1 &
+pid=$!
+
+while kill -0 "$pid" 2>/dev/null; do
+  printf "."
+  sleep 1
+done
+echo
+grep -E "^(Result:|Detection events sent:)" /tmp/detector-test.log

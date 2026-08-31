@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Run on the LAPTOP. Pulls session log files down from the Pi's logs/
+# directory into the laptop's logs/ directory.
+#
+# detector-start/detector-ui-start name each run's log by PID
+# (drone-detect_<pid>.log, detections_<pid>.log, detector-ui_<pid>.log), so a
+# field day produces many files rather than one growing one. This mirrors
+# that whole directory down rather than trying to track individual files.
+#
+# Safe to run repeatedly, including while the detector is running on the
+# Pi: rsync only (re)transfers files that are new or have changed size/mtime,
+# so a still-growing log just gets its new tail pulled on the next run.
+# Nothing is deleted, on the Pi or locally.
+set -euo pipefail
+PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
+PI_HOST="rpi-ethernet"
+PI_LOG_DIR="workspace/drone_detector/logs"
+LOCAL_LOG_DIR="$PROJ_ROOT/logs"
+
+mkdir -p "$LOCAL_LOG_DIR"
+
+echo "Pulling logs: $PI_HOST:$PI_LOG_DIR/ -> $LOCAL_LOG_DIR/"
+rsync -avz "$PI_HOST:$PI_LOG_DIR/" "$LOCAL_LOG_DIR/"

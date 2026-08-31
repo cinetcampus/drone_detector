@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Run on the Pi (directly, or remotely via
+# `ssh rpi-ethernet workspace/drone_detector/scripts/wifi-on`).
+#
+# Re-enables the WiFi radio (see wifi-off for why sudo is needed). Restores
+# both normal WiFi and the Pi's fallback hotspot, since they share the same
+# radio. Run with a real TTY so sudo can prompt (`ssh -t rpi-ethernet
+# workspace/drone_detector/scripts/wifi-on`, or run directly once SSH'd in).
+set -uo pipefail
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+
+if sudo nmcli radio wifi on; then
+    :
+elif command -v rfkill >/dev/null 2>&1 && sudo rfkill unblock wifi; then
+    :
+else
+    echo "ERROR: neither nmcli nor rfkill could enable WiFi" >&2
+    exit 1
+fi
+
+sleep 0.3
+status="$("$SCRIPT_DIR/wifi-status")"
+echo "$status"
+[ "$status" = "WiFi: ON" ]

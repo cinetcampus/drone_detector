@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Run on the Pi (directly, or remotely via
+# `ssh rpi-ethernet workspace/drone_detector/scripts/wifi-off`).
+#
+# Disables the WiFi radio -- an alternative to pressing the hardware WiFi
+# button (Raspberry_Recorder/app.py), for when the mic is picking up WiFi
+# interference and physical access isn't convenient.
+#
+# Needs sudo: NetworkManager only lets a plain `nmcli radio wifi off` through
+# for the Pi's local/active console session (which is why the hardware
+# button's own nmcli call, running in that session, doesn't need sudo) --
+# an SSH session has no seat, so polkit denies it outright without sudo.
+# Run this with a real TTY so sudo can prompt (e.g. `ssh -t rpi-ethernet
+# workspace/drone_detector/scripts/wifi-off`, or just run it directly once
+# already SSH'd in).
+#
+# This also drops the Pi's fallback WiFi hotspot, since it's the same radio.
+# The dedicated Ethernet link (rpi-ethernet) is unaffected -- use it to
+# reconnect and run wifi-on to bring WiFi back.
+set -uo pipefail
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+
+if sudo nmcli radio wifi off; then
+    :
+elif command -v rfkill >/dev/null 2>&1 && sudo rfkill block wifi; then
+    :
+else
+    echo "ERROR: neither nmcli nor rfkill could disable WiFi" >&2
+    exit 1
+fi
+
+sleep 0.3
+status="$("$SCRIPT_DIR/wifi-status")"
+echo "$status"
+[ "$status" = "WiFi: OFF" ]

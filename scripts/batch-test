@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Run on the LAPTOP. Opens a local browser-based UI for batch-testing
+# recordings against the trained model: pick a directory from the browser to
+# run (searched recursively, grouped by subfolder), and browse past runs
+# without re-running them (see drone_detect/batch_test.py's docstring).
+set -euo pipefail
+PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
+cd "$PROJ_ROOT/drone_detect"
+exec .venv/bin/python3 -u batch_test.py "$@"

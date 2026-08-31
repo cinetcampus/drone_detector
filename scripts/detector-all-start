@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+SCRIPTS_DIR="$(dirname "$(realpath "$0")")"
+status=0
+"$SCRIPTS_DIR/detector-start" || status=1
+"$SCRIPTS_DIR/detector-ui-start" || status=1
+exit "$status"
