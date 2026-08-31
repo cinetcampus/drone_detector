@@ -1,27 +1,18 @@
 #!/usr/bin/env bash
-# Run on the LAPTOP. Deploys committed local changes to the Pi for each
-# project repo. Safe by construction: the Pi refuses the push if its
-# working tree is dirty (receive.denyCurrentBranch=updateInstead), so this
-# can never silently overwrite an uncommitted field edit.
+# Run on the LAPTOP. Deploys committed local changes to the Pi. Safe by
+# construction: the Pi refuses the push if its working tree is dirty
+# (receive.denyCurrentBranch=updateInstead), so this can never silently
+# overwrite an uncommitted field edit.
 set -euo pipefail
 PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
 BRANCH="main"
-REPOS=(drone_detect detector_ui scripts Raspberry_Recorder)
 
-for repo in "${REPOS[@]}"; do
-    echo "== $repo =="
-    dir="$PROJ_ROOT/$repo"
+if ! git -C "$PROJ_ROOT" remote get-url pi >/dev/null 2>&1; then
+    echo "no 'pi' remote configured -- see pi-git-setup.sh"
+    exit 1
+fi
 
-    if ! git -C "$dir" remote get-url pi >/dev/null 2>&1; then
-        echo "  no 'pi' remote configured here, skipping"
-        echo
-        continue
-    fi
-
-    if git -C "$dir" push pi "$BRANCH"; then
-        :
-    else
-        echo "  push failed -- Pi has diverged or dirty commits; run pi-sync-pull first"
-    fi
-    echo
-done
+if ! git -C "$PROJ_ROOT" push pi "$BRANCH"; then
+    echo "push failed -- Pi has diverged or dirty commits; run pi-sync-pull first"
+    exit 1
+fi

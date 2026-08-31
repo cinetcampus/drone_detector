@@ -3,9 +3,6 @@
 # troubleshooting) back into the laptop's history, then pushes the
 # reconciled result back so both sides end up identical.
 #
-# Usage: pi-sync-pull [drone_detect|detector_ui|scripts|Raspberry_Recorder]
-#        (default: all four)
-#
 # If the Pi's working tree has uncommitted edits, they're committed there
 # first (as a plain snapshot, nothing is discarded) before fetching. If the
 # merge conflicts, this stops and leaves the repo mid-merge for you to
@@ -13,52 +10,38 @@
 set -euo pipefail
 PROJ_ROOT="$(realpath "$(dirname "$0")/..")"
 PI_HOST="rpi-ethernet"
+PI_PATH="workspace/drone_detector"
 BRANCH="main"
-# Local dir name -> path on the Pi (relative to the pi user's home).
-declare -A REPO_PI_PATH=(
-    [drone_detect]="workspace/drone_detector/drone_detect"
-    [detector_ui]="workspace/drone_detector/detector_ui"
-    [scripts]="workspace/drone_detector/scripts"
-    [Raspberry_Recorder]="workspace/audio_recorder"
-)
-ALL_REPOS=(drone_detect detector_ui scripts Raspberry_Recorder)
 
-if [ $# -ge 1 ]; then
-    REPOS=("$1")
-else
-    REPOS=("${ALL_REPOS[@]}")
+if ! git -C "$PROJ_ROOT" remote get-url pi >/dev/null 2>&1; then
+    echo "no 'pi' remote configured -- see pi-git-setup.sh"
+    exit 1
 fi
 
-for repo in "${REPOS[@]}"; do
-    echo "== $repo =="
-    dir="$PROJ_ROOT/$repo"
+dirty="$(ssh "$PI_HOST" "git -C $PI_PATH status --short")"
+if [ -n "$dirty" ]; then
+    echo "Pi has uncommitted changes, snapshotting them there first:"
+    echo "$dirty" | sed 's/^/  /'
+    ssh "$PI_HOST" "cd $PI_PATH && git add -A && git commit -m 'Snapshot of on-Pi working state (auto, via pi-sync-pull)'"
+else
+    echo "Pi working tree is clean, nothing to snapshot"
+fi
 
-    dirty="$(ssh "$PI_HOST" "git -C ${REPO_PI_PATH[$repo]} status --short")"
-    if [ -n "$dirty" ]; then
-        echo "  Pi has uncommitted changes, snapshotting them there first:"
-        echo "$dirty" | sed 's/^/    /'
-        ssh "$PI_HOST" "cd ${REPO_PI_PATH[$repo]} && git add -A && git commit -m 'Snapshot of on-Pi working state (auto, via pi-sync-pull)'"
-    else
-        echo "  Pi working tree is clean, nothing to snapshot"
-    fi
+git -C "$PROJ_ROOT" fetch pi -q
 
-    git -C "$dir" fetch pi -q
-
-    if git -C "$dir" merge-base --is-ancestor "pi/$BRANCH" "$BRANCH"; then
-        echo "  laptop already has everything from the Pi"
-    elif git -C "$dir" merge "pi/$BRANCH" -m "Merge Pi's field snapshot"; then
-        echo "  merged cleanly"
-    else
-        echo
-        echo "  MERGE CONFLICT in $repo -- resolve by hand:"
-        echo "    cd $dir"
-        echo "    <fix the conflicting files>"
-        echo "    git add <file>..."
-        echo "    git commit"
-        echo "    scripts/pi-sync-push"
-        exit 1
-    fi
-
-    git -C "$dir" push pi "$BRANCH"
+if git -C "$PROJ_ROOT" merge-base --is-ancestor "pi/$BRANCH" "$BRANCH"; then
+    echo "laptop already has everything from the Pi"
+elif git -C "$PROJ_ROOT" merge "pi/$BRANCH" -m "Merge Pi's field snapshot"; then
+    echo "merged cleanly"
+else
     echo
-done
+    echo "MERGE CONFLICT -- resolve by hand:"
+    echo "  cd $PROJ_ROOT"
+    echo "  <fix the conflicting files>"
+    echo "  git add <file>..."
+    echo "  git commit"
+    echo "  scripts/pi-sync-push"
+    exit 1
+fi
+
+git -C "$PROJ_ROOT" push pi "$BRANCH"

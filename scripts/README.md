@@ -36,18 +36,22 @@ demo. Everything here locates its siblings by relative path
 
 ## Pi deployment / sync (laptop \<-> Pi)
 
-These were written when `detector_ui`, `drone_detect`, `Raspberry_Recorder`,
-and `scripts` were four independent repos, each pushed to a matching bare
-repo on the Pi. They haven't been updated for the merged repo layout — see
-the [top-level README](../README.md#pi-sync-scripts).
+These sync this single combined repo with one matching repo on a Raspberry
+Pi. They target a **new** Pi setup — the previous version of these scripts
+synced `detector_ui`, `drone_detect`, `Raspberry_Recorder`, and `scripts` as
+four independent repos, each pushed to its own bare repo on the Pi; that
+only applies to the old per-repo layout and the current field Pi hasn't been
+migrated off it. Run `pi-git-setup.sh` on a fresh Pi before using the rest.
 
-- `pi-git-setup.sh` — run once, on the Pi: creates a bare repo + checkout per
-  project under `~/repos` / `~/workspace/drone_detector`.
-- `pi-sync-push` — push committed local changes to the Pi for each repo.
+- `pi-git-setup.sh` — run once, on the Pi: creates one bare repo + checkout
+  for the whole project under `~/repos/drone_detector.git` /
+  `~/workspace/drone_detector`, with a post-receive hook that also
+  initializes the `rpi-lorawan` submodule.
+- `pi-sync-push` — push committed local changes to the Pi.
 - `pi-sync-pull` — bring changes made directly on the Pi back into the
   laptop's history (snapshotting any dirty Pi working tree first), then
   pushes the reconciled result back.
-- `pi-sync-status` — shows, per repo, whether the laptop and Pi agree on
-  commits and whether the Pi has uncommitted changes.
+- `pi-sync-status` — shows whether the laptop and Pi agree on commits and
+  whether the Pi has uncommitted changes.
 - `pi-sync-logs` — rsyncs session log files down from the Pi's `logs/` into
   the laptop's `logs/`.
