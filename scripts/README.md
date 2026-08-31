@@ -37,11 +37,7 @@ demo. Everything here locates its siblings by relative path
 ## Pi deployment / sync (laptop \<-> Pi)
 
 These sync this single combined repo with one matching repo on a Raspberry
-Pi. They target a **new** Pi setup — the previous version of these scripts
-synced `detector_ui`, `drone_detect`, `Raspberry_Recorder`, and `scripts` as
-four independent repos, each pushed to its own bare repo on the Pi; that
-only applies to the old per-repo layout and the current field Pi hasn't been
-migrated off it. Run `pi-git-setup.sh` on a fresh Pi before using the rest.
+Pi. Run `pi-git-setup.sh` once on the Pi before using the rest.
 
 - `pi-git-setup.sh` — run once, on the Pi: creates one bare repo + checkout
   for the whole project under `~/repos/drone_detector.git` /

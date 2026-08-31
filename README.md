@@ -33,8 +33,5 @@ that component's directory), use the wrappers in `scripts/` to run the demo, e.g
 
 `scripts/pi-sync-pull`, `pi-sync-push`, `pi-sync-status`, and `pi-git-setup.sh` sync
 this single combined repo with one matching repo on a Raspberry Pi (see
-[`scripts/README.md`](scripts/README.md#pi-deployment--sync-laptop---pi)). They
-previously synced each of the four components as an independent repo — that only
-applied to the old per-repo layout and has been superseded. They target a **new** Pi
-setup: the current field Pi still runs the old four-repo layout and hasn't been
-migrated, so run `pi-git-setup.sh` on a fresh Pi before using these.
+[`scripts/README.md`](scripts/README.md#pi-deployment--sync-laptop---pi)). Run
+`pi-git-setup.sh` once on the Pi before using the rest.

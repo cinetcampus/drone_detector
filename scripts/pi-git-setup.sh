@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run this ONCE, directly on a (new) Pi (not from the laptop).
+# Run this ONCE, directly on the Pi (not from the laptop).
 #
 # Creates one bare git repo for the whole combined project under ~/repos,
 # with a post-receive hook that checks the pushed commit out straight into
