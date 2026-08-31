@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Detector Map</title>
+  <link rel="stylesheet" href="leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header><div class="brand"><span class="brand-mark"><i></i></span>DETECTOR</div><button id="detector-toggle" class="detector-toggle">STOP DETECTOR</button><div id="status" class="status"><span></span> CONNECTING</div></header>
+  <main>
+    <div class="dashboard">
+      <section class="card map-card">
+        <div id="map" class="map">
+          <div id="leaflet-map" class="leaflet-map" role="application" aria-label="Detection map"></div>
+        </div>
+        <div class="panel">
+          <div class="sensor-info">
+            <div><span>ACTIVE SENSOR</span><strong>Sensor 01</strong><small id="position">Position 63.8421, 23.1317</small></div>
+            <div id="confidence" class="confidence" aria-live="polite">
+              <div class="confidence-text">
+                <span>LIVE SIGNAL</span>
+                <strong id="confidence-label">—</strong>
+                <small id="confidence-score"></small>
+              </div>
+              <div class="confidence-visual">
+                <div class="confidence-gauge">
+                  <div class="confidence-gauge-track">
+                    <div id="confidence-gauge-fill" class="confidence-gauge-fill"></div>
+                    <div id="confidence-gauge-threshold" class="confidence-gauge-threshold" hidden></div>
+                  </div>
+                </div>
+                <svg id="confidence-spark" class="confidence-spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+                  <line id="confidence-spark-threshold" x1="0" x2="200" y1="36" y2="36" class="confidence-spark-threshold" hidden />
+                  <polyline id="confidence-spark-line" points="" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div id="result" class="result" aria-live="polite"><b>✓</b><div><span id="result-label">DETECTION</span><strong id="accuracy">Accuracy: —</strong></div></div>
+          <button id="debug" class="debug" hidden>DEBUG DETECT</button>
+        </div>
+      </section>
+      <section class="card event-log-card" aria-label="Event log">
+        <div class="event-log-panel">
+          <h2>Event Log</h2>
+          <div class="event-log-scroll">
+            <table id="event-log">
+              <thead>
+                <tr>
+                  <th>arrive time</th>
+                  <th>accuracy</th>
+                  <th>detector</th>
+                </tr>
+              </thead>
+              <tbody id="event-log-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p class="help"><b>DRAG</b> the sensor to reposition it <i></i> detections arrive automatically</p>
+  </main>
+  <script src="leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
