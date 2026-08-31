@@ -1,0 +1,301 @@
+{
+  "algorithm": "v2a_classical_ml",
+  "combined_supplementary": {
+    "counts": {
+      "drone": 24144,
+      "no_drone": 44213
+    },
+    "metrics": {
+      "accuracy": 0.9905496145237503,
+      "balanced_accuracy": 0.9900530036069891,
+      "confusion_matrix": {
+        "fn": 281,
+        "fp": 365,
+        "tn": 43848,
+        "tp": 23863
+      },
+      "f1": 0.9866451666253204,
+      "f2": 0.9876742491970464,
+      "false_negative_rate": 0.011638502319416832,
+      "false_positive_rate": 0.008255490466604844,
+      "pr_auc": 0.9991402072210249,
+      "precision": 0.9849347861977877,
+      "recall": 0.9883614976805831,
+      "roc_auc": 0.9995329321202588,
+      "rows": 68357,
+      "threshold": 0.4085200850214452
+    },
+    "note": "Combined metrics include positive-only or near-positive-only professor data and do not replace the public_test benchmark.",
+    "supplementary": true
+  },
+  "efficiency": {
+    "average_inference_time_sec_per_window": 1.2606284811310097e-06,
+    "deployability_label": "maybe_deployable",
+    "feature_count": 100,
+    "model_size": "14.1 MB",
+    "model_size_bytes": 14776260,
+    "model_type": "random_forest",
+    "parameter_count": null,
+    "runtime_dependency": "scikit-learn",
+    "tree_node_count": 184252
+  },
+  "feature_bundle": "artifacts/v2_16khz/features/public_professor_features.npz",
+  "feature_count": 100,
+  "feature_set": "spectral_mfcc_v1",
+  "metrics_path": "artifacts/v2_16khz/models/v2a/metrics/random_forest.json",
+  "model_path": "artifacts/v2_16khz/models/v2a/models/random_forest.joblib",
+  "model_type": "random_forest",
+  "preprocessing_profile": "mono_resample_poly_16khz_v1",
+  "processed_sample_rate_hz": 16000,
+  "professor_test": {
+    "counts": {
+      "drone": 1113,
+      "no_drone": 0
+    },
+    "metrics": {
+      "longest_missed_segment_sec": 9.0,
+      "mean_p_drone": 0.6064681421241946,
+      "median_p_drone": 0.6368656635649862,
+      "missed_window_count": 195,
+      "prediction_stability": {
+        "decision_flip_count": 123,
+        "decision_flip_rate": 0.11061151079136691,
+        "score_std": 0.18787051503962196
+      },
+      "recall": 0.8247978436657682,
+      "rows": 1113,
+      "score_quantiles": {
+        "p05": 0.2642217368039321,
+        "p25": 0.47085016834029714,
+        "p50": 0.6368656635649862,
+        "p75": 0.7517457897757687,
+        "p95": 0.8696820585852008
+      },
+      "threshold": 0.4085200850214452
+    }
+  },
+  "public_test": {
+    "counts": {
+      "drone": 23031,
+      "no_drone": 44213
+    },
+    "false_positive_rate_by_subtype": {
+      "no_drone_aircraft": {
+        "false_positive_rate": 0.0010621348911311736,
+        "false_positives": 30,
+        "rows": 28245,
+        "true_negatives": 28215
+      },
+      "no_drone_background": {
+        "false_positive_rate": 0.00027277686852154935,
+        "false_positives": 1,
+        "rows": 3666,
+        "true_negatives": 3665
+      },
+      "no_drone_traffic": {
+        "false_positive_rate": 0.006647673314339981,
+        "false_positives": 28,
+        "rows": 4212,
+        "true_negatives": 4184
+      },
+      "no_drone_urban_industrial": {
+        "false_positive_rate": 0.037824474660074166,
+        "false_positives": 306,
+        "rows": 8090,
+        "true_negatives": 7784
+      }
+    },
+    "metrics": {
+      "accuracy": 0.9932930819106537,
+      "balanced_accuracy": 0.9940052060063311,
+      "confusion_matrix": {
+        "fn": 86,
+        "fp": 365,
+        "tn": 43848,
+        "tp": 22945
+      },
+      "f1": 0.9902677974148163,
+      "f2": 0.9938579621255437,
+      "false_negative_rate": 0.003734097520732925,
+      "false_positive_rate": 0.008255490466604844,
+      "pr_auc": 0.9995663310954231,
+      "precision": 0.9843414843414844,
+      "recall": 0.996265902479267,
+      "roc_auc": 0.9997727890537846,
+      "rows": 67244,
+      "threshold": 0.4085200850214452
+    }
+  },
+  "schema_version": "v2a_metrics_v1",
+  "selection": {
+    "primary_metric": "validation.f2",
+    "primary_threshold": "threshold_f2",
+    "uses_professor_data": false
+  },
+  "source_bundle_fingerprint": "263c18ba1343abf21f41c0e5e115bc68e17fa8d7278c717c1745f0df72c6c90d",
+  "threshold": 0.4085200850214452,
+  "threshold_name": "threshold_f2",
+  "thresholds": {
+    "threshold_at_fpr_1": 0.39494752586336623,
+    "threshold_at_fpr_10": 0.07173866515791072,
+    "threshold_at_fpr_2": 0.2697109330953743,
+    "threshold_at_fpr_5": 0.1336219654999346,
+    "threshold_f1": 0.5270537906849785,
+    "threshold_f2": 0.4085200850214452
+  },
+  "track": "v2a",
+  "training": {
+    "counts": {
+      "drone": 109725,
+      "no_drone": 165003
+    }
+  },
+  "validation": {
+    "counts": {
+      "drone": 21787,
+      "no_drone": 37511
+    },
+    "metrics_by_threshold": {
+      "threshold_at_fpr_1": {
+        "accuracy": 0.9927316266990455,
+        "balanced_accuracy": 0.9935527554685916,
+        "confusion_matrix": {
+          "fn": 73,
+          "fp": 358,
+          "tn": 37153,
+          "tp": 21714
+        },
+        "f1": 0.9901730545612074,
+        "f2": 0.9940487090276507,
+        "false_negative_rate": 0.003350621930509019,
+        "false_positive_rate": 0.009543867132307857,
+        "pr_auc": 0.9996367125367881,
+        "precision": 0.9837803552011598,
+        "recall": 0.9966493780694909,
+        "roc_auc": 0.9997900574522436,
+        "rows": 59298,
+        "threshold": 0.39494752586336623
+      },
+      "threshold_at_fpr_10": {
+        "accuracy": 0.9434213632837533,
+        "balanced_accuracy": 0.9552797845965184,
+        "confusion_matrix": {
+          "fn": 0,
+          "fp": 3355,
+          "tn": 34156,
+          "tp": 21787
+        },
+        "f1": 0.9285090242707068,
+        "f2": 0.9701220055214178,
+        "false_negative_rate": 0.0,
+        "false_positive_rate": 0.08944043080696329,
+        "pr_auc": 0.9996367125367881,
+        "precision": 0.8665579508392331,
+        "recall": 1.0,
+        "roc_auc": 0.9997900574522436,
+        "rows": 59298,
+        "threshold": 0.07173866515791072
+      },
+      "threshold_at_fpr_2": {
+        "accuracy": 0.9870484670646564,
+        "balanced_accuracy": 0.9894455414695222,
+        "confusion_matrix": {
+          "fn": 33,
+          "fp": 735,
+          "tn": 36776,
+          "tp": 21754
+        },
+        "f1": 0.9826542596440508,
+        "f2": 0.9920920857009953,
+        "false_negative_rate": 0.0015146647083122964,
+        "false_positive_rate": 0.019594252352643223,
+        "pr_auc": 0.9996367125367881,
+        "precision": 0.9673173551514074,
+        "recall": 0.9984853352916877,
+        "roc_auc": 0.9997900574522436,
+        "rows": 59298,
+        "threshold": 0.2697109330953743
+      },
+      "threshold_at_fpr_5": {
+        "accuracy": 0.9695436608317313,
+        "balanced_accuracy": 0.9758693411438741,
+        "confusion_matrix": {
+          "fn": 6,
+          "fp": 1800,
+          "tn": 35711,
+          "tp": 21781
+        },
+        "f1": 0.9601922059601481,
+        "f2": 0.983527350558571,
+        "false_negative_rate": 0.0002753935833295084,
+        "false_positive_rate": 0.047985924128922185,
+        "pr_auc": 0.9996367125367881,
+        "precision": 0.9236673593147026,
+        "recall": 0.9997246064166705,
+        "roc_auc": 0.9997900574522436,
+        "rows": 59298,
+        "threshold": 0.1336219654999346
+      },
+      "threshold_f1": {
+        "accuracy": 0.9944517521670209,
+        "balanced_accuracy": 0.9941812334672124,
+        "confusion_matrix": {
+          "fn": 149,
+          "fp": 180,
+          "tn": 37331,
+          "tp": 21638
+        },
+        "f1": 0.9924549936933839,
+        "f2": 0.992878512563552,
+        "false_negative_rate": 0.006838940652682792,
+        "false_positive_rate": 0.004798592412892219,
+        "pr_auc": 0.9996367125367881,
+        "precision": 0.9917499312494271,
+        "recall": 0.9931610593473172,
+        "roc_auc": 0.9997900574522436,
+        "rows": 59298,
+        "threshold": 0.5270537906849785
+      },
+      "threshold_f2": {
+        "accuracy": 0.9932038180039799,
+        "balanced_accuracy": 0.9938874991552944,
+        "confusion_matrix": {
+          "fn": 77,
+          "fp": 326,
+          "tn": 37185,
+          "tp": 21710
+        },
+        "f1": 0.9908039157520023,
+        "f2": 0.994193288393904,
+        "false_negative_rate": 0.0035342176527286915,
+        "false_positive_rate": 0.008690784036682574,
+        "pr_auc": 0.9996367125367881,
+        "precision": 0.9852060265020874,
+        "recall": 0.9964657823472713,
+        "roc_auc": 0.9997900574522436,
+        "rows": 59298,
+        "threshold": 0.4085200850214452
+      }
+    },
+    "primary": {
+      "accuracy": 0.9932038180039799,
+      "balanced_accuracy": 0.9938874991552944,
+      "confusion_matrix": {
+        "fn": 77,
+        "fp": 326,
+        "tn": 37185,
+        "tp": 21710
+      },
+      "f1": 0.9908039157520023,
+      "f2": 0.994193288393904,
+      "false_negative_rate": 0.0035342176527286915,
+      "false_positive_rate": 0.008690784036682574,
+      "pr_auc": 0.9996367125367881,
+      "precision": 0.9852060265020874,
+      "recall": 0.9964657823472713,
+      "roc_auc": 0.9997900574522436,
+      "rows": 59298,
+      "threshold": 0.4085200850214452
+    }
+  }
+}

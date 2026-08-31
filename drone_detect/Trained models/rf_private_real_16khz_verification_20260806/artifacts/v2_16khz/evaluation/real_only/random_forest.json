@@ -1,0 +1,180 @@
+{
+  "bundle_fingerprint": "cb432160190d7958137876c5edce88ef7cf2d79a7f9c1f16ec28dd314cbdf335",
+  "counts": {
+    "drone": 1113,
+    "no_drone": 592,
+    "recordings": 11
+  },
+  "evaluation_only": true,
+  "feature_bundle": "artifacts/v2_16khz/features/private_real_features.npz",
+  "fit_called": false,
+  "limitations": [
+    "The external set contains one positive and ten negative recordings.",
+    "Overlapping windows are correlated and are not independent trials.",
+    "The model and validation-derived threshold were frozen before this evaluation.",
+    "This stress test is not a deployment-performance estimate."
+  ],
+  "metrics": {
+    "accuracy": 0.8557184750733138,
+    "balanced_accuracy": 0.8693245975085597,
+    "confusion_matrix": {
+      "fn": 195,
+      "fp": 51,
+      "tn": 541,
+      "tp": 918
+    },
+    "f1": 0.8818443804034581,
+    "f2": 0.8467072495849475,
+    "false_negative_rate": 0.1752021563342318,
+    "false_positive_rate": 0.08614864864864864,
+    "pr_auc": 0.9698483033140686,
+    "precision": 0.9473684210526315,
+    "recall": 0.8247978436657682,
+    "roc_auc": 0.9526526189262038,
+    "rows": 1705,
+    "threshold": 0.4085200850214452
+  },
+  "model_path": "artifacts/v2_16khz/models/v2a/models/random_forest.joblib",
+  "model_type": "random_forest",
+  "per_environment": {
+    "forest": {
+      "accuracy": 0.9963768115942029,
+      "balanced_accuracy": 0.9963768115942029,
+      "confusion_matrix": {
+        "fn": 0,
+        "fp": 1,
+        "tn": 275,
+        "tp": 0
+      },
+      "f1": null,
+      "f2": null,
+      "false_negative_rate": null,
+      "false_positive_rate": 0.0036231884057971015,
+      "pr_auc": null,
+      "precision": 0.0,
+      "recall": null,
+      "roc_auc": null,
+      "rows": 276,
+      "threshold": 0.4085200850214452
+    },
+    "traffic": {
+      "accuracy": 0.8417721518987342,
+      "balanced_accuracy": 0.8417721518987342,
+      "confusion_matrix": {
+        "fn": 0,
+        "fp": 50,
+        "tn": 266,
+        "tp": 0
+      },
+      "f1": null,
+      "f2": null,
+      "false_negative_rate": null,
+      "false_positive_rate": 0.15822784810126583,
+      "pr_auc": null,
+      "precision": 0.0,
+      "recall": null,
+      "roc_auc": null,
+      "rows": 316,
+      "threshold": 0.4085200850214452
+    },
+    "unspecified": {
+      "accuracy": 0.8247978436657682,
+      "balanced_accuracy": 0.8247978436657682,
+      "confusion_matrix": {
+        "fn": 195,
+        "fp": 0,
+        "tn": 0,
+        "tp": 918
+      },
+      "f1": 0.9039881831610045,
+      "f2": 0.8547486033519552,
+      "false_negative_rate": 0.1752021563342318,
+      "false_positive_rate": null,
+      "pr_auc": 1.0,
+      "precision": 1.0,
+      "recall": 0.8247978436657682,
+      "roc_auc": null,
+      "rows": 1113,
+      "threshold": 0.4085200850214452
+    }
+  },
+  "per_recording_fpr": [
+    {
+      "environment": "traffic",
+      "false_positive_rate": 0.014814814814814815,
+      "false_positives": 2,
+      "negative_windows": 135,
+      "original_file": "Recordings/recording_20260715_124928_traffic.wav"
+    },
+    {
+      "environment": "traffic",
+      "false_positive_rate": 0.2231404958677686,
+      "false_positives": 27,
+      "negative_windows": 121,
+      "original_file": "Recordings/recording_20260715_125131_traffic.wav"
+    },
+    {
+      "environment": "traffic",
+      "false_positive_rate": 0.35,
+      "false_positives": 7,
+      "negative_windows": 20,
+      "original_file": "Recordings/recording_20260715_125247_traffic.wav"
+    },
+    {
+      "environment": "traffic",
+      "false_positive_rate": 0.5,
+      "false_positives": 10,
+      "negative_windows": 20,
+      "original_file": "Recordings/recording_20260715_125301_traffic.wav"
+    },
+    {
+      "environment": "traffic",
+      "false_positive_rate": 0.2,
+      "false_positives": 4,
+      "negative_windows": 20,
+      "original_file": "Recordings/recording_20260715_125318_traffic.wav"
+    },
+    {
+      "environment": "forest",
+      "false_positive_rate": 0.0,
+      "false_positives": 0,
+      "negative_windows": 10,
+      "original_file": "Recordings/recording_20260723_134015_forest.wav"
+    },
+    {
+      "environment": "forest",
+      "false_positive_rate": 0.0,
+      "false_positives": 0,
+      "negative_windows": 21,
+      "original_file": "Recordings/recording_20260723_134102_forest.wav"
+    },
+    {
+      "environment": "forest",
+      "false_positive_rate": 0.008333333333333333,
+      "false_positives": 1,
+      "negative_windows": 120,
+      "original_file": "Recordings/recording_20260723_134135_forest.wav"
+    },
+    {
+      "environment": "forest",
+      "false_positive_rate": 0.0,
+      "false_positives": 0,
+      "negative_windows": 5,
+      "original_file": "Recordings/recording_20260723_134504_forest.wav"
+    },
+    {
+      "environment": "forest",
+      "false_positive_rate": 0.0,
+      "false_positives": 0,
+      "negative_windows": 120,
+      "original_file": "Recordings/recording_20260723_134516_forest.wav"
+    }
+  ],
+  "preprocessing_profile": "mono_resample_poly_16khz_v1",
+  "processed_sample_rate_hz": 16000,
+  "schema_version": "v2_real_only_evaluation_v1",
+  "threshold": 0.4085200850214452,
+  "threshold_name": "threshold_f2",
+  "threshold_tuned": false,
+  "track": "v2a"
+}

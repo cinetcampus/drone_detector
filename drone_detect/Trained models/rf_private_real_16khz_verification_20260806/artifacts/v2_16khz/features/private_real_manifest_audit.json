@@ -1,0 +1,21 @@
+{
+  "audio_root": "data/raw/private",
+  "caveats": [
+    "Only one independent positive and ten independent negative recordings.",
+    "Eight questionable negative timestamps remain in the review queue and are not used for tuning.",
+    "This is an external stress test, not a deployment-performance estimate."
+  ],
+  "counts": {
+    "negative_recordings": 10,
+    "negative_windows": 592,
+    "positive_recordings": 1,
+    "positive_windows": 1113,
+    "rows": 1705
+  },
+  "evaluation_only": true,
+  "fit_or_tune_allowed": false,
+  "manifest": "artifacts/v2_16khz/features/private_real_manifest.csv",
+  "preprocessing_profile": "mono_resample_poly_16khz_v1",
+  "processed_sample_rate_hz": 16000,
+  "schema_version": "private_real_manifest_audit_v1"
+}

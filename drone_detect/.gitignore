@@ -1,0 +1,9 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.log
+*.wav
+*.joblib
+*.npz
+batch_runs/
